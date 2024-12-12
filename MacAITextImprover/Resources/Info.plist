@@ -1,4 +1,0 @@
-<key>NSMicrophoneUsageDescription</key>
-<string>We need access to your microphone for speech recognition.</string>
-<key>NSSpeechRecognitionUsageDescription</key>
-<string>We need speech recognition permission to convert your speech to text.</string> 
