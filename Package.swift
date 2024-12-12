@@ -17,6 +17,13 @@ let package = Package(
             swiftSettings: [
                 .unsafeFlags(["-framework", "AppKit"])
             ]
+        ),
+        .testTarget(
+            name: "MacAITextImproverTests",
+            dependencies: ["MacAITextImprover"],
+            resources: [
+                .copy("TestResources")
+            ]
         )
     ]
 )
