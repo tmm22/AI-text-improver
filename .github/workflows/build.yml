@@ -23,51 +23,144 @@ jobs:
       with:
         xcode-version: latest-stable
     
-    - name: Verify documentation sync
-      run: |
-        # Check if all documented features have tests
-        swift test --filter "MacAITextImproverTests.WritingStyleTests/testAllDocumentedStylesExist"
+    # Download UI Baselines
+    - name: Download UI Baselines
+      uses: actions/download-artifact@v3
+      with:
+        name: ui-baselines
+        path: UIBaselines
+      continue-on-error: true
     
     - name: Build for ${{ matrix.arch }}
       run: |
         arch -${{ matrix.arch }} swift build -c release
     
-    - name: Run unit tests
+    # Core Feature Tests
+    - name: Run Writing Style Tests
       run: |
         arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.WritingStyleTests"
     
-    - name: Run integration tests
+    - name: Run AI Service Tests
       run: |
-        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.Integration"
+        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.AIServiceTests"
     
-    - name: Run UI tests
+    - name: Run Text-to-Speech Tests
       run: |
-        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.UI"
+        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.TextToSpeechTests"
     
-    - name: Generate test coverage report
+    - name: Run Speech Recognition Tests
+      run: |
+        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.SpeechRecognitionTests"
+    
+    # UI Tests
+    - name: Run UI Tests
+      run: |
+        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.ContentViewTests"
+    
+    # UI Consistency Tests
+    - name: Run UI Consistency Tests
+      run: |
+        # Create baseline directory if it doesn't exist
+        mkdir -p UIBaselines
+        
+        # Run UI consistency tests
+        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.UIConsistencyTests"
+    
+    # Documentation Tests
+    - name: Verify Documentation Sync
+      run: |
+        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.WritingStyleTests/testAllDocumentedStylesExist"
+    
+    # Generate and Upload Coverage
+    - name: Generate Test Coverage Report
       run: |
         xcrun llvm-cov export \
           .build/${{ matrix.arch }}-apple-macosx/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS/MacAITextImproverPackageTests \
           -instr-profile=.build/debug/codecov/default.profdata \
           -format=lcov > coverage.lcov
     
-    - name: Upload coverage to Codecov
+    - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.lcov
         flags: ${{ matrix.arch }}
         fail_ci_if_error: true
     
-    - name: Upload build artifacts
+    # Upload Artifacts
+    - name: Upload Build Artifacts
       uses: actions/upload-artifact@v3
       with:
         name: MacAITextImprover-${{ matrix.arch }}
         path: .build/release/MacAITextImprover
     
-    - name: Upload test results
+    - name: Upload Test Results
       uses: actions/upload-artifact@v3
       with:
         name: test-results-${{ matrix.arch }}
         path: |
           .build/debug/codecov/
           coverage.lcov
+    
+    # Upload UI Baselines and Reports
+    - name: Upload UI Baselines and Reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: ui-baselines
+        path: |
+          UIBaselines/
+          UIBaselines/Reports/
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+  # Baseline Management Job
+  manage-baselines:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download UI Baselines
+      uses: actions/download-artifact@v3
+      with:
+        name: ui-baselines
+        path: UIBaselines
+    
+    - name: Commit Updated Baselines
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add UIBaselines/
+        git commit -m "Update UI baselines [skip ci]" || echo "No changes to commit"
+        git push
+    
+    # Create GitHub Release with UI Change Report
+    - name: Create Release with UI Report
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: UIBaselines/Reports/*.md
+        body_path: UIBaselines/Reports/ui_changes_latest.md
+        draft: true
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    # Add UI Report to Pull Request
+    - name: Comment PR with UI Changes
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const reports = fs.readdirSync('UIBaselines/Reports');
+          const latestReport = reports.sort().pop();
+          const reportContent = fs.readFileSync(`UIBaselines/Reports/${latestReport}`, 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.name,
+            body: reportContent
+          });
