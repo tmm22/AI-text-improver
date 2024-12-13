@@ -17,9 +17,9 @@ class ContentViewModel: ObservableObject {
     @Published var voiceStability: Double = 0.5
     @Published var voiceSimilarityBoost: Double = 0.75
     
-    private let anthropicAPI: AnthropicAPI
-    private let openAIAPI: OpenAIAPI
-    private let elevenLabsAPI: ElevenLabsAPI?
+    private var anthropicAPI: AnthropicAPI
+    private var openAIAPI: OpenAIAPI
+    private var elevenLabsAPI: ElevenLabsAPI?
     
     private let speechRecognizer = SFSpeechRecognizer()
     private let audioEngine = AVAudioEngine()
@@ -42,6 +42,31 @@ class ContentViewModel: ObservableObject {
                     self.errorMessage = "Failed to load voices: \(error.localizedDescription)"
                 }
             }
+        }
+    }
+    
+    func updateAPIKeys(anthropic: String, openAI: String) {
+        self.anthropicAPI = AnthropicAPI(apiKey: anthropic)
+        self.openAIAPI = OpenAIAPI(apiKey: openAI)
+    }
+    
+    func updateElevenLabsKey(_ key: String) {
+        self.elevenLabsAPI = !key.isEmpty ? ElevenLabsAPI(apiKey: key) : nil
+        
+        if let elevenLabsAPI = elevenLabsAPI {
+            Task {
+                do {
+                    self.voices = try await elevenLabsAPI.getVoices()
+                    if let firstVoice = voices.first {
+                        self.selectedVoiceID = firstVoice.voice_id
+                    }
+                } catch {
+                    self.errorMessage = "Failed to load voices: \(error.localizedDescription)"
+                }
+            }
+        } else {
+            self.voices = []
+            self.selectedVoiceID = ""
         }
     }
     

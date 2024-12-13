@@ -2,6 +2,9 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel: ContentViewModel
+    @AppStorage("anthropicKey") private var anthropicKey: String = ""
+    @AppStorage("openAIKey") private var openAIKey: String = ""
+    @AppStorage("elevenLabsKey") private var elevenLabsKey: String = ""
     
     init() {
         // Initialize with stored API keys
@@ -18,6 +21,37 @@ struct ContentView: View {
     
     var body: some View {
         VStack(spacing: 20) {
+            // API Settings Section
+            GroupBox("API Settings") {
+                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 10) {
+                    GridRow {
+                        Text("Anthropic API Key:")
+                        SecureField("Required for Claude AI", text: $anthropicKey)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: anthropicKey) { newValue in
+                                viewModel.updateAPIKeys(anthropic: newValue, openAI: openAIKey)
+                            }
+                    }
+                    GridRow {
+                        Text("OpenAI API Key:")
+                        SecureField("Optional for GPT-4", text: $openAIKey)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: openAIKey) { newValue in
+                                viewModel.updateAPIKeys(anthropic: anthropicKey, openAI: newValue)
+                            }
+                    }
+                    GridRow {
+                        Text("ElevenLabs API Key:")
+                        SecureField("Optional for text-to-speech", text: $elevenLabsKey)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: elevenLabsKey) { newValue in
+                                viewModel.updateElevenLabsKey(newValue)
+                            }
+                    }
+                }
+                .padding(.horizontal)
+            }
+            
             // Input Section
             GroupBox("Input") {
                 TextEditor(text: $viewModel.inputText)

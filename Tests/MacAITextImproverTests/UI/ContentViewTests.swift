@@ -43,6 +43,38 @@ final class ContentViewTests: XCTestCase {
         await fulfillment(of: [expectation], timeout: 5.0)
     }
     
+    func testAPIKeyInputFields() async {
+        let expectation = XCTestExpectation(description: "API key input fields")
+        
+        Task {
+            // Check for API key input fields
+            let mirror = Mirror(reflecting: contentView)
+            
+            // Check for @AppStorage properties
+            let hasAnthropicKey = mirror.children.contains { $0.label == "_anthropicKey" }
+            let hasOpenAIKey = mirror.children.contains { $0.label == "_openAIKey" }
+            let hasElevenLabsKey = mirror.children.contains { $0.label == "_elevenLabsKey" }
+            
+            XCTAssertTrue(hasAnthropicKey, "Anthropic API key input field is missing")
+            XCTAssertTrue(hasOpenAIKey, "OpenAI API key input field is missing")
+            XCTAssertTrue(hasElevenLabsKey, "ElevenLabs API key input field is missing")
+            
+            // Test API key updates
+            contentView.anthropicKey = "test_anthropic"
+            contentView.openAIKey = "test_openai"
+            contentView.elevenLabsKey = "test_elevenlabs"
+            
+            // Verify keys are stored
+            XCTAssertEqual(UserDefaults.standard.string(forKey: "anthropicKey"), "test_anthropic")
+            XCTAssertEqual(UserDefaults.standard.string(forKey: "openAIKey"), "test_openai")
+            XCTAssertEqual(UserDefaults.standard.string(forKey: "elevenLabsKey"), "test_elevenlabs")
+            
+            expectation.fulfill()
+        }
+        
+        await fulfillment(of: [expectation], timeout: 5.0)
+    }
+    
     // MARK: - Error Handling Tests
     
     func testMissingAnthropicAPIKey() async {
