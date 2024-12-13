@@ -20,6 +20,13 @@ jobs:
       with:
         xcode-version: '14.2'
     
+    # Set up Swift environment
+    - name: Set up Swift
+      run: |
+        swift --version
+        swift package resolve
+        swift build
+    
     # Basic test setup
     - name: Set up test environment
       run: |
