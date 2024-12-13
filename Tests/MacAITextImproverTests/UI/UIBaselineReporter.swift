@@ -28,9 +28,9 @@ class UIBaselineReporter {
         
         // Track changes by category
         var hierarchyChanges: [String] = []
-        var layoutChanges: [(component: String, previous: [String: CGFloat], current: [String: CGFloat])] = []
-        var stateChanges: [(component: String, previous: [String], current: [String])] = []
-        var accessibilityChanges: [(component: String, previous: [String: String], current: [String: String])] = []
+        var layoutChanges: [(String, [String: CGFloat], [String: CGFloat])] = []
+        var stateChanges: [(String, [String], [String])] = []
+        var accessibilityChanges: [(String, [String: String], [String: String])] = []
         
         // Compare baselines
         for (key, currentValue) in currentBaselines {
@@ -82,9 +82,9 @@ class UIBaselineReporter {
             for change in layoutChanges {
                 report += """
                 
-                #### \(change.component)
+                #### \(change.0)
                 ```diff
-                \(generateLayoutDiff(previous: change.previous, current: change.current))
+                \(generateLayoutDiff(previous: change.1, current: change.2))
                 ```
                 """
             }
@@ -96,9 +96,9 @@ class UIBaselineReporter {
             for change in stateChanges {
                 report += """
                 
-                #### \(change.component)
+                #### \(change.0)
                 ```diff
-                \(generateStateDiff(previous: change.previous, current: change.current))
+                \(generateStateDiff(previous: change.1, current: change.2))
                 ```
                 """
             }
@@ -110,9 +110,9 @@ class UIBaselineReporter {
             for change in accessibilityChanges {
                 report += """
                 
-                #### \(change.component)
+                #### \(change.0)
                 ```diff
-                \(generateAccessibilityDiff(previous: change.previous, current: change.current))
+                \(generateAccessibilityDiff(previous: change.1, current: change.2))
                 ```
                 """
             }

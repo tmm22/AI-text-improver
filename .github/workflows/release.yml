@@ -1,1 +1,70 @@
- 
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  create-dmg:
+    name: Create DMG (${{ matrix.arch }})
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+        include:
+          - arch: x86_64
+            name: Intel
+          - arch: arm64
+            name: Apple Silicon
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+    
+    - name: Build for ${{ matrix.arch }}
+      run: |
+        arch -${{ matrix.arch }} swift build -c release
+    
+    - name: Create app bundle
+      run: |
+        APP_NAME="MacAITextImprover"
+        APP_DIR="$APP_NAME.app"
+        CONTENTS_DIR="$APP_DIR/Contents"
+        MACOS_DIR="$CONTENTS_DIR/MacOS"
+        RESOURCES_DIR="$CONTENTS_DIR/Resources"
+        
+        # Create directory structure
+        mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
+        
+        # Copy executable
+        cp .build/release/MacAITextImprover "$MACOS_DIR/"
+        
+        # Copy Info.plist
+        cp MacAITextImprover.app/Contents/Info.plist "$CONTENTS_DIR/"
+        
+        # Create DMG
+        hdiutil create -volname "$APP_NAME-${{ matrix.name }}" \
+                      -srcfolder "$APP_DIR" \
+                      -ov -format UDZO \
+                      "$APP_NAME-${{ matrix.name }}.dmg"
+    
+    - name: Upload DMG artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: MacAITextImprover-${{ matrix.name }}.dmg
+        path: MacAITextImprover-${{ matrix.name }}.dmg
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: MacAITextImprover-${{ matrix.name }}.dmg
+        draft: true
+        prerelease: false
+        generate_release_notes: true 
