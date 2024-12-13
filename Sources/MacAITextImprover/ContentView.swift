@@ -23,8 +23,8 @@ struct ContentView: View {
         VStack(spacing: 20) {
             // API Settings Section
             GroupBox("API Settings") {
-                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 10) {
-                    GridRow {
+                VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading) {
                         Text("Anthropic API Key:")
                         SecureField("Required for Claude AI", text: $anthropicKey)
                             .textFieldStyle(.roundedBorder)
@@ -32,7 +32,8 @@ struct ContentView: View {
                                 viewModel.updateAPIKeys(anthropic: newValue, openAI: openAIKey)
                             }
                     }
-                    GridRow {
+                    
+                    VStack(alignment: .leading) {
                         Text("OpenAI API Key:")
                         SecureField("Optional for GPT-4", text: $openAIKey)
                             .textFieldStyle(.roundedBorder)
@@ -40,7 +41,8 @@ struct ContentView: View {
                                 viewModel.updateAPIKeys(anthropic: anthropicKey, openAI: newValue)
                             }
                     }
-                    GridRow {
+                    
+                    VStack(alignment: .leading) {
                         Text("ElevenLabs API Key:")
                         SecureField("Optional for text-to-speech", text: $elevenLabsKey)
                             .textFieldStyle(.roundedBorder)
@@ -60,7 +62,7 @@ struct ContentView: View {
                 HStack {
                     Button(action: {
                         Task {
-                            await viewModel.toggleRecording()
+                            viewModel.toggleRecording()
                         }
                     }) {
                         Image(systemName: viewModel.isRecording ? "stop.circle.fill" : "mic.circle")
