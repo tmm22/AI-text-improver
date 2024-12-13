@@ -5,6 +5,12 @@ All notable changes to Mac AI Text Improver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.20] - 2024-03-13
+
+### Changed
+- Removed explicit Xcode setup step from build workflow
+- Using default Xcode installation from macOS runner
+
 ## [1.0.19] - 2024-03-13
 
 ### Fixed
