@@ -14,7 +14,7 @@ permissions:
 jobs:
   verify:
     name: Verify Tests
-    runs-on: macos-latest
+    runs-on: macos-14
     outputs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
@@ -37,7 +37,7 @@ jobs:
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "14.2"
+          xcode-version: "15.2"
 
       - name: Run Tests
         run: |
@@ -52,7 +52,7 @@ jobs:
   build:
     name: Build App
     needs: verify
-    runs-on: macos-latest
+    runs-on: macos-14
     env:
       VERSION: ${{ needs.verify.outputs.version }}
     outputs:
@@ -67,7 +67,7 @@ jobs:
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "14.2"
+          xcode-version: "15.2"
 
       - name: Clean Environment
         run: |
@@ -176,7 +176,7 @@ EOL
   release:
     name: Create Release
     needs: [verify, build]
-    runs-on: macos-latest
+    runs-on: macos-14
     env:
       VERSION: ${{ needs.verify.outputs.version }}
     steps:
