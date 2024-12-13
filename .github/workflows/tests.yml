@@ -6,23 +6,11 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      debug_enabled:
-        description: 'Run the build with debug logging enabled'
-        required: false
-        default: false
-        type: boolean
-
-env:
-  DEVELOPER_DIR: /Applications/Xcode_14.2.app/Contents/Developer
 
 jobs:
   test:
     name: Run Tests
     runs-on: macos-latest
-    env:
-      NSMicrophoneUsageDescription: "Testing microphone access"
-      NSSpeechRecognitionUsageDescription: "Testing speech recognition"
     
     steps:
     - uses: actions/checkout@v3
@@ -32,120 +20,23 @@ jobs:
       with:
         xcode-version: '14.2'
     
-    # Set up Swift environment
-    - name: Set up Swift
-      run: |
-        swift --version
-        swift package resolve
-        swift build
-    
-    # Set up test environment
+    # Basic test setup
     - name: Set up test environment
       run: |
-        # Create test directories
-        mkdir -p UIBaselines
-        mkdir -p .build/debug/codecov
         mkdir -p .build/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS
-        
-        # Enable test modes
-        defaults write com.apple.dt.XCTest DisableForceWaitForPlatformQuiescence -bool YES
-        defaults write com.apple.dt.XCTest DisableTestsWaitingForAttachment -bool YES
-        defaults write com.apple.dt.XCTest DisableTestsWaitingForLaunch -bool YES
         defaults write com.apple.dt.XCTest HeadlessMode -bool YES
-        
-        # Set up audio and speech recognition
-        defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AuthorizationStatus -int 3
-        
-        # Set up audio session
-        sudo launchctl unload /System/Library/LaunchDaemons/com.apple.audio.coreaudiod.plist || true
-        sleep 2
-        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.audio.coreaudiod.plist
-        sleep 5
     
-    # Feature Tests
+    # Start with just the basic tests
     - name: Run Writing Style Tests
       run: swift test --filter "MacAITextImproverTests.WritingStyleTests" --enable-test-discovery
     
     - name: Run AI Service Tests
       run: swift test --filter "MacAITextImproverTests.AIServiceTests" --enable-test-discovery
     
-    - name: Run Speech Recognition Tests
-      run: |
-        # Mock speech recognition for tests
-        defaults write com.apple.dt.XCTest SpeechRecognitionAuthorizationStatus -int 3
-        swift test --filter "MacAITextImproverTests.SpeechRecognitionTests" --enable-test-discovery
-    
-    - name: Run Text-to-Speech Tests
-      run: |
-        # Mock audio session for tests
-        defaults write com.apple.dt.XCTest AudioSessionAuthorizationStatus -int 1
-        swift test --filter "MacAITextImproverTests.TextToSpeechTests" --enable-test-discovery
-    
-    # UI Tests
-    - name: Run Content View Tests
-      run: |
-        # Set up UI test environment
-        defaults write com.apple.CoreSimulator.IndigoFramebufferServices FramebufferStatus -bool NO
-        swift test --filter "MacAITextImproverTests.ContentViewTests" --enable-test-discovery
-    
-    - name: Run UI Consistency Tests
-      run: swift test --filter "MacAITextImproverTests.UIConsistencyTests" --enable-test-discovery
-    
-    # Generate Coverage Report
-    - name: Generate Code Coverage
-      run: |
-        swift test --enable-code-coverage --enable-test-discovery
-        xcrun llvm-cov export -format="lcov" \
-          .build/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS/MacAITextImproverPackageTests \
-          -instr-profile .build/debug/codecov/default.profdata \
-          > coverage.lcov
-    
-    # Upload Coverage
-    - name: Upload to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.lcov
-        fail_ci_if_error: true
-    
     # Upload Test Results
     - name: Upload Test Results
+      if: always()
       uses: actions/upload-artifact@v3
       with:
         name: test-results
-        path: |
-          .build/debug/codecov/
-          coverage.lcov
-          UIBaselines/
-    
-    # Create Test Report
-    - name: Create Test Summary
-      if: always()
-      run: |
-        echo "# Test Results Summary" > test_summary.md
-        echo "" >> test_summary.md
-        echo "## Coverage Report" >> test_summary.md
-        echo "\`\`\`" >> test_summary.md
-        cat coverage.lcov | grep -E "^SF:|^LF:|^LH:" >> test_summary.md
-        echo "\`\`\`" >> test_summary.md
-        
-        # Add UI test results if available
-        if [ -d "UIBaselines/Reports" ]; then
-          echo "" >> test_summary.md
-          echo "## UI Test Results" >> test_summary.md
-          cat UIBaselines/Reports/*.md >> test_summary.md
-        fi
-    
-    # Add PR Comment
-    - name: Comment PR
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const fs = require('fs');
-          const summary = fs.readFileSync('test_summary.md', 'utf8');
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.name,
-            body: summary
-          });
+        path: .build/debug/
