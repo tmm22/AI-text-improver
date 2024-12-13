@@ -63,13 +63,27 @@ jobs:
         cp ".build/release/$APP_NAME" "$MACOS_DIR/"
         cp MacAITextImprover.app/Contents/Info.plist "$CONTENTS_DIR/"
         chmod +x "$MACOS_DIR/$APP_NAME"
+        
+        # Verify app bundle
+        if [ ! -x "$MACOS_DIR/$APP_NAME" ]; then
+          echo "App bundle creation failed"
+          exit 1
+        fi
     
     - name: Create DMG
+      id: create_dmg
       run: |
         # Get version from tag
         VERSION=${GITHUB_REF#refs/tags/v}
         APP_NAME="MacAITextImprover"
         DMG_NAME="$APP_NAME-${VERSION}.dmg"
+        
+        echo "Creating DMG with version: $VERSION"
+        echo "DMG name will be: $DMG_NAME"
+        
+        # List contents before DMG creation
+        echo "Contents before DMG creation:"
+        ls -la
         
         # Create DMG
         hdiutil create -volname "$APP_NAME" \
@@ -85,8 +99,12 @@ jobs:
         
         echo "Created DMG: $DMG_NAME"
         ls -la "$DMG_NAME"
+        
+        # Store DMG path for later use
+        echo "DMG_PATH=$DMG_NAME" >> $GITHUB_ENV
     
     - name: Prepare Release Notes
+      id: release_notes
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
         echo "Extracting release notes for version $VERSION"
@@ -104,10 +122,12 @@ jobs:
         cat release_notes.md
     
     - name: Create Release
+      id: create_release
       uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        files: "MacAITextImprover-*.dmg"
+        files: ${{ env.DMG_PATH }}
         body_path: release_notes.md
         name: "Version ${{ github.ref_name }}"
         draft: true
-        fail_on_unmatched_files: true
