@@ -24,12 +24,15 @@ jobs:
     - name: Set up Swift
       run: |
         swift --version
-        swift package describe
+        swift package reset
+        swift package clean
+        swift package resolve
     
     # Run tests
     - name: Run tests
       run: |
-        swift test --enable-test-discovery --parallel
+        swift build
+        swift test --enable-test-discovery
     
     # Upload Test Results
     - name: Upload Test Results
