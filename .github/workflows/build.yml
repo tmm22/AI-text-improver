@@ -5,9 +5,18 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+permissions:
+  contents: write
+  discussions: write
+  packages: read
+
 jobs:
   build:
     runs-on: macos-13
+    permissions:
+      contents: write
+      discussions: write
+      packages: read
     steps:
       - uses: actions/checkout@v4
       
@@ -55,10 +64,9 @@ jobs:
           ls -la "${DMG_NAME}"
       
       - name: Create Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          files: MacAITextImprover-*.dmg
+          artifacts: "*.dmg"
+          token: ${{ secrets.GITHUB_TOKEN }}
           draft: true
+          generateReleaseNotes: true
