@@ -5,6 +5,24 @@ All notable changes to Mac AI Text Improver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2024-03-13
+
+### Changed
+- Simplified build workflow for better reliability
+- Removed redundant debug output
+- Streamlined artifact handling
+- Fixed release notes handling
+- Improved YAML formatting
+
+## [1.0.10] - 2024-03-13
+
+### Fixed
+- Updated to Xcode 15.0 for GitHub Actions compatibility
+- Switched to macOS 13 runner for better stability
+- Updated GitHub Actions to v4 for better performance
+- Fixed workflow file formatting and structure
+- Added proper error handling in shell scripts
+
 ## [1.0.9] - 2024-03-13
 
 ### Fixed
