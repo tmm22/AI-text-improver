@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: read
+
 jobs:
   verify:
     name: Verify Tests
@@ -14,6 +18,8 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       
       - name: Get Version
         id: get_version
@@ -141,6 +147,11 @@ EOL
           
           # Set output
           echo "dmg_path=artifacts/$DMG_NAME" >> $GITHUB_OUTPUT
+          
+          # Debug: Show DMG contents
+          hdiutil attach "artifacts/$DMG_NAME"
+          ls -la /Volumes/MacAITextImprover/
+          hdiutil detach /Volumes/MacAITextImprover/
       
       - name: Prepare Release Notes
         id: prepare_notes
@@ -167,6 +178,7 @@ EOL
           name: release-artifacts
           path: artifacts/
           if-no-files-found: error
+          retention-days: 1
 
   release:
     name: Create Release
@@ -176,6 +188,8 @@ EOL
       VERSION: ${{ needs.verify.outputs.version }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       
       - name: Download Artifacts
         uses: actions/download-artifact@v3
@@ -199,6 +213,14 @@ EOL
             echo "Release notes missing!"
             exit 1
           fi
+          
+          # Debug: Show DMG contents
+          hdiutil attach "artifacts/MacAITextImprover-${VERSION}.dmg"
+          ls -la /Volumes/MacAITextImprover/
+          hdiutil detach /Volumes/MacAITextImprover/
+          
+          echo "Release notes content:"
+          cat artifacts/release_notes.md
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
