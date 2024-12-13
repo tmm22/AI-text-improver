@@ -53,69 +53,47 @@ jobs:
         swift build -c release
         
         # Create app bundle
-        APP_NAME="MacAITextImprover"
-        APP_DIR="$APP_NAME.app"
-        CONTENTS_DIR="$APP_DIR/Contents"
-        MACOS_DIR="$CONTENTS_DIR/MacOS"
-        RESOURCES_DIR="$CONTENTS_DIR/Resources"
-        
-        mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
-        cp ".build/release/$APP_NAME" "$MACOS_DIR/"
-        cp MacAITextImprover.app/Contents/Info.plist "$CONTENTS_DIR/"
-        chmod +x "$MACOS_DIR/$APP_NAME"
+        mkdir -p MacAITextImprover.app/Contents/MacOS MacAITextImprover.app/Contents/Resources
+        cp .build/release/MacAITextImprover MacAITextImprover.app/Contents/MacOS/
+        cp MacAITextImprover.app/Contents/Info.plist MacAITextImprover.app/Contents/
+        chmod +x MacAITextImprover.app/Contents/MacOS/MacAITextImprover
         
         # Verify app bundle
-        if [ ! -x "$MACOS_DIR/$APP_NAME" ]; then
+        if [ ! -x "MacAITextImprover.app/Contents/MacOS/MacAITextImprover" ]; then
           echo "App bundle creation failed"
           exit 1
         fi
         
         echo "App bundle contents:"
-        ls -R "$APP_DIR"
+        ls -R MacAITextImprover.app
     
     - name: Create DMG
       id: create_dmg
       run: |
         # Get version from tag
         VERSION=${GITHUB_REF#refs/tags/v}
-        APP_NAME="MacAITextImprover"
-        DMG_NAME="$APP_NAME-${VERSION}.dmg"
+        DMG_NAME="MacAITextImprover-${VERSION}.dmg"
         
         echo "Creating DMG with version: $VERSION"
         echo "DMG name will be: $DMG_NAME"
         
-        # Create artifacts directory
-        mkdir -p artifacts
-        
-        # List contents before DMG creation
-        echo "Contents before DMG creation:"
-        ls -la
-        
         # Create DMG
-        hdiutil create -volname "$APP_NAME" \
-                      -srcfolder "$APP_NAME.app" \
+        hdiutil create -volname "MacAITextImprover" \
+                      -srcfolder MacAITextImprover.app \
                       -ov -format UDZO \
-                      "artifacts/$DMG_NAME"
+                      "$DMG_NAME"
         
         # Verify DMG was created
-        if [ ! -f "artifacts/$DMG_NAME" ]; then
+        if [ ! -f "$DMG_NAME" ]; then
           echo "DMG creation failed"
           exit 1
         fi
         
-        echo "Created DMG: artifacts/$DMG_NAME"
-        ls -la artifacts/
+        echo "Created DMG: $DMG_NAME"
+        ls -la "$DMG_NAME"
         
-        # Store DMG path for later use
-        echo "DMG_PATH=artifacts/$DMG_NAME" >> $GITHUB_ENV
-        echo "DMG_NAME=$DMG_NAME" >> $GITHUB_ENV
-    
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: dmg-artifact
-        path: artifacts/*.dmg
-        if-no-files-found: error
+        # Store DMG name for later use
+        echo "dmg_name=$DMG_NAME" >> $GITHUB_OUTPUT
     
     - name: Prepare Release Notes
       id: release_notes
@@ -124,23 +102,34 @@ jobs:
         echo "Extracting release notes for version $VERSION"
         
         # Extract section between current version header and next version header
-        awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | sed '$d' > artifacts/release_notes.md
+        awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | sed '$d' > release_notes.md
         
         # Verify release notes were extracted
-        if [ ! -s artifacts/release_notes.md ]; then
+        if [ ! -s release_notes.md ]; then
           echo "Failed to extract release notes for version $VERSION"
           exit 1
         fi
         
         echo "Release notes content:"
-        cat artifacts/release_notes.md
+        cat release_notes.md
     
     - name: Create Release
-      uses: ncipollo/release-action@v1.13.0
+      uses: actions/create-release@v1
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        artifacts: "artifacts/*.dmg"
-        bodyFile: "artifacts/release_notes.md"
-        token: ${{ secrets.GITHUB_TOKEN }}
+        tag_name: ${{ github.ref }}
+        release_name: "Version ${{ github.ref_name }}"
+        body_path: release_notes.md
         draft: true
-        name: "Version ${{ github.ref_name }}"
-        allowUpdates: true
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.create_dmg.outputs.dmg_name }}
+        asset_name: ${{ steps.create_dmg.outputs.dmg_name }}
+        asset_content_type: application/x-apple-diskimage

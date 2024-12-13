@@ -1,174 +1,134 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel = ContentViewModel()
-    @AppStorage("anthropicKey") private var anthropicKey = ""
-    @AppStorage("openAIKey") private var openAIKey = ""
-    @AppStorage("elevenLabsKey") private var elevenLabsKey = ""
-    @State private var isElevenLabsKeyValid = false
+    @StateObject private var viewModel: ContentViewModel
+    
+    init() {
+        // Initialize with stored API keys
+        let anthropicKey = UserDefaults.standard.string(forKey: "anthropicKey") ?? ""
+        let openAIKey = UserDefaults.standard.string(forKey: "openAIKey") ?? ""
+        let elevenLabsKey = UserDefaults.standard.string(forKey: "elevenLabsKey") ?? ""
+        
+        _viewModel = StateObject(wrappedValue: ContentViewModel(
+            anthropicKey: anthropicKey,
+            openAIKey: openAIKey,
+            elevenLabsKey: elevenLabsKey
+        ))
+    }
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Mac AI Text Improver")
-                .font(.title)
-            
-            // API Keys Section
-            GroupBox(label: Text("API Keys")) {
-                VStack(alignment: .leading, spacing: 10) {
-                    SecureField("Anthropic API Key", text: $anthropicKey)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .onChange(of: anthropicKey) { newKey in
-                            viewModel.updateAPIKeys(anthropic: newKey, openAI: openAIKey)
+            // Input Section
+            GroupBox("Input") {
+                TextEditor(text: $viewModel.inputText)
+                    .frame(height: 200)
+                
+                HStack {
+                    Button(action: {
+                        Task {
+                            await viewModel.toggleRecording()
                         }
+                    }) {
+                        Image(systemName: viewModel.isRecording ? "stop.circle.fill" : "mic.circle")
+                            .font(.title)
+                    }
+                    .keyboardShortcut(.space, modifiers: [])
+                    .help("Start/Stop voice input")
                     
-                    SecureField("OpenAI API Key", text: $openAIKey)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .onChange(of: openAIKey) { newKey in
-                            viewModel.updateAPIKeys(anthropic: anthropicKey, openAI: newKey)
-                        }
+                    Spacer()
                     
-                    SecureField("ElevenLabs API Key", text: $elevenLabsKey)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .onChange(of: elevenLabsKey) { newKey in
-                            if !newKey.isEmpty {
-                                Task {
-                                    isElevenLabsKeyValid = await viewModel.validateElevenLabsKey(newKey)
-                                }
-                            } else {
-                                isElevenLabsKeyValid = false
-                            }
-                        }
-                }
-                .padding()
-            }
-            
-            // Service and Style Selectors
-            GroupBox(label: Text("AI Settings")) {
-                VStack(spacing: 15) {
-                    // Service Selector
+                    // Service Selection
                     Picker("AI Service", selection: $viewModel.selectedService) {
                         Text("Claude AI").tag(AIServiceType.anthropic)
                         Text("GPT-4").tag(AIServiceType.openAI)
                     }
-                    .pickerStyle(SegmentedPickerStyle())
+                    .pickerStyle(.segmented)
+                    .frame(width: 200)
                     
-                    // Writing Style Selector
+                    // Style Selection
                     Picker("Writing Style", selection: $viewModel.selectedStyle) {
                         ForEach(WritingStyle.allCases, id: \.self) { style in
                             Text(style.rawValue).tag(style)
                         }
                     }
-                    .pickerStyle(MenuPickerStyle())
+                    .frame(width: 200)
                 }
-                .padding()
             }
             
-            // Voice Settings - Only show if ElevenLabs key is valid
-            if isElevenLabsKeyValid {
-                GroupBox(label: Text("Voice Settings")) {
-                    VStack(spacing: 15) {
-                        if viewModel.isLoading {
-                            ProgressView("Loading voices...")
-                        } else {
+            // Action Button
+            Button(action: {
+                Task {
+                    await viewModel.improveText()
+                }
+            }) {
+                if viewModel.isProcessing {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else {
+                    Text("Improve Text")
+                }
+            }
+            .keyboardShortcut(.return, modifiers: [])
+            .disabled(viewModel.inputText.isEmpty || viewModel.isProcessing)
+            
+            // Output Section
+            GroupBox("Improved Text") {
+                TextEditor(text: .constant(viewModel.outputText))
+                    .frame(height: 200)
+                
+                if viewModel.isElevenLabsConfigured() {
+                    HStack {
+                        // Voice Settings
+                        VStack(alignment: .leading) {
                             // Voice Selector
                             Picker("Voice", selection: $viewModel.selectedVoiceID) {
                                 ForEach(viewModel.voices) { voice in
                                     Text(voice.name).tag(voice.voice_id)
                                 }
                             }
-                            .pickerStyle(MenuPickerStyle())
+                            .frame(width: 200)
                             
                             // Voice Parameters
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Stability: \(viewModel.stability, specifier: "%.2f")")
-                                Slider(value: $viewModel.stability, in: 0...1) { _ in
-                                    viewModel.updateVoiceSettings(
-                                        voiceID: viewModel.selectedVoiceID,
-                                        stability: viewModel.stability,
-                                        similarityBoost: viewModel.similarityBoost
-                                    )
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Stability: \(viewModel.voiceStability, specifier: "%.2f")")
+                                    Slider(value: $viewModel.voiceStability, in: 0...1)
+                                        .frame(width: 150)
                                 }
                                 
-                                Text("Similarity Boost: \(viewModel.similarityBoost, specifier: "%.2f")")
-                                Slider(value: $viewModel.similarityBoost, in: 0...1) { _ in
-                                    viewModel.updateVoiceSettings(
-                                        voiceID: viewModel.selectedVoiceID,
-                                        stability: viewModel.stability,
-                                        similarityBoost: viewModel.similarityBoost
-                                    )
+                                VStack(alignment: .leading) {
+                                    Text("Similarity: \(viewModel.voiceSimilarityBoost, specifier: "%.2f")")
+                                    Slider(value: $viewModel.voiceSimilarityBoost, in: 0...1)
+                                        .frame(width: 150)
                                 }
                             }
                         }
-                    }
-                    .padding()
-                }
-            }
-            
-            // Text Input Area
-            GroupBox(label: Text("Input/Output Text")) {
-                TextEditor(text: $viewModel.inputText)
-                    .frame(height: 200)
-                    .font(.body)
-            }
-            .padding()
-            
-            // Control Buttons
-            HStack(spacing: 20) {
-                // Record Button
-                Button(action: viewModel.toggleRecording) {
-                    Image(systemName: viewModel.isRecording ? "stop.circle.fill" : "mic.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(viewModel.isRecording ? .red : .blue)
-                }
-                .help("Start/Stop Voice Recording")
-                
-                // Improve Text Button
-                Button("Improve Text") {
-                    Task {
-                        await viewModel.improveText()
-                    }
-                }
-                .disabled(viewModel.inputText.isEmpty || viewModel.isLoading)
-                
-                // Text-to-Speech Button - Only show if ElevenLabs key is valid
-                if isElevenLabsKeyValid {
-                    Button {
-                        Task {
-                            await viewModel.speakText()
+                        
+                        Spacer()
+                        
+                        // Play Button
+                        Button(action: {
+                            Task {
+                                await viewModel.playImprovedText()
+                            }
+                        }) {
+                            Image(systemName: "play.circle")
+                                .font(.title)
                         }
-                    } label: {
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 24))
+                        .disabled(viewModel.outputText.isEmpty)
+                        .keyboardShortcut("p", modifiers: [.command])
+                        .help("Play improved text")
                     }
-                    .disabled(viewModel.inputText.isEmpty || viewModel.isLoading)
-                    .help("Read Text Aloud")
                 }
             }
             
-            // Status Messages
-            if viewModel.isRecording {
-                Text("Recording...")
-                    .foregroundColor(.red)
-            }
-            
+            // Error Display
             if let error = viewModel.errorMessage {
                 Text(error)
                     .foregroundColor(.red)
-                    .font(.caption)
             }
         }
         .padding()
         .frame(minWidth: 700, minHeight: 800)
-        .onAppear {
-            // Initialize APIs with stored keys
-            viewModel.updateAPIKeys(anthropic: anthropicKey, openAI: openAIKey)
-            
-            // Check ElevenLabs key validity
-            if !elevenLabsKey.isEmpty {
-                Task {
-                    isElevenLabsKeyValid = await viewModel.validateElevenLabsKey(elevenLabsKey)
-                }
-            }
-        }
     }
 } 
