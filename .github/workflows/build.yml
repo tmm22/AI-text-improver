@@ -50,16 +50,22 @@ jobs:
                       -ov -format UDZO \
                       "$DMG_NAME"
     
-    - name: Upload DMG
-      uses: actions/upload-artifact@v3
-      with:
-        name: MacAITextImprover.dmg
-        path: MacAITextImprover-*.dmg
+    - name: Generate Release Notes
+      id: release_notes
+      run: |
+        VERSION=$(git describe --tags --abbrev=0)
+        echo "CHANGELOG_SECTION<<EOF" >> $GITHUB_ENV
+        sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
     
-    - name: Upload to Release
-      if: startsWith(github.ref, 'refs/tags/')
+    - name: Create Release
       uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
       with:
+        name: ${{ github.ref_name }}
+        body: ${{ env.CHANGELOG_SECTION }}
         files: MacAITextImprover-*.dmg
         draft: false
         prerelease: false
+        fail_on_unmatched_files: true
+        token: ${{ secrets.GITHUB_TOKEN }}
