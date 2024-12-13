@@ -55,15 +55,11 @@ jobs:
         
         # Set up audio and speech recognition
         defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AuthorizationStatus -int 3
-        defaults write com.apple.security.temporary-exception.audio-unit-host -bool YES
-        defaults write com.apple.security.temporary-exception.mach-lookup.global-name "com.apple.audio.AudioComponentRegistrar" -bool YES
         
         # Set up audio session
-        if pgrep coreaudiod > /dev/null; then
-          sudo pkill -9 coreaudiod || true
-          sleep 2
-        fi
-        sudo launchctl load /System/Library/LaunchDaemons/com.apple.audio.coreaudiod.plist
+        sudo launchctl unload /System/Library/LaunchDaemons/com.apple.audio.coreaudiod.plist || true
+        sleep 2
+        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.audio.coreaudiod.plist
         sleep 5
     
     # Feature Tests
@@ -74,10 +70,16 @@ jobs:
       run: swift test --filter "MacAITextImproverTests.AIServiceTests" --enable-test-discovery
     
     - name: Run Speech Recognition Tests
-      run: swift test --filter "MacAITextImproverTests.SpeechRecognitionTests" --enable-test-discovery
+      run: |
+        # Mock speech recognition for tests
+        defaults write com.apple.dt.XCTest SpeechRecognitionAuthorizationStatus -int 3
+        swift test --filter "MacAITextImproverTests.SpeechRecognitionTests" --enable-test-discovery
     
     - name: Run Text-to-Speech Tests
-      run: swift test --filter "MacAITextImproverTests.TextToSpeechTests" --enable-test-discovery
+      run: |
+        # Mock audio session for tests
+        defaults write com.apple.dt.XCTest AudioSessionAuthorizationStatus -int 1
+        swift test --filter "MacAITextImproverTests.TextToSpeechTests" --enable-test-discovery
     
     # UI Tests
     - name: Run Content View Tests
