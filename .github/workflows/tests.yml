@@ -2,10 +2,19 @@ name: Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature/** ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Run the build with debug logging enabled'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_14.2.app/Contents/Developer
 
 jobs:
   test:
@@ -28,39 +37,48 @@ jobs:
         mkdir -p .build/debug/codecov
         
         # Set up permissions for Speech Recognition in tests
-        defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AllowAudioDucking -bool YES
-        defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AllowHeadlessModeForTests -bool YES
+        sudo sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" \
+          "INSERT OR REPLACE INTO access VALUES('kTCCServiceMicrophone','com.apple.dt.xctest',0,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1);"
+        sudo sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" \
+          "INSERT OR REPLACE INTO access VALUES('kTCCServiceSpeechRecognition','com.apple.dt.xctest',0,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1);"
+        
+        # Enable headless mode for tests
+        defaults write com.apple.dt.xctest HeadlessMode -bool YES
+        
+        # Set up audio session
+        sudo launchctl bootout system/com.apple.audio.coreaudiod || true
+        sudo launchctl bootstrap system/com.apple.audio.coreaudiod
     
     # Feature Tests
     - name: Run Writing Style Tests
-      run: swift test --filter "MacAITextImproverTests.WritingStyleTests"
+      run: swift test --filter "MacAITextImproverTests.WritingStyleTests" --enable-test-discovery
     
     - name: Run AI Service Tests
-      run: swift test --filter "MacAITextImproverTests.AIServiceTests"
+      run: swift test --filter "MacAITextImproverTests.AIServiceTests" --enable-test-discovery
     
     - name: Run Speech Recognition Tests
       run: |
         # Mock speech recognition authorization for tests
         defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AuthorizationStatus -int 3
-        swift test --filter "MacAITextImproverTests.SpeechRecognitionTests"
+        swift test --filter "MacAITextImproverTests.SpeechRecognitionTests" --enable-test-discovery
     
     - name: Run Text-to-Speech Tests
-      run: swift test --filter "MacAITextImproverTests.TextToSpeechTests"
+      run: swift test --filter "MacAITextImproverTests.TextToSpeechTests" --enable-test-discovery
     
     # UI Tests
     - name: Run Content View Tests
       run: |
         # Set up UI test environment
         defaults write com.apple.CoreSimulator.IndigoFramebufferServices FramebufferStatus -bool NO
-        swift test --filter "MacAITextImproverTests.ContentViewTests"
+        swift test --filter "MacAITextImproverTests.ContentViewTests" --enable-test-discovery
     
     - name: Run UI Consistency Tests
-      run: swift test --filter "MacAITextImproverTests.UIConsistencyTests"
+      run: swift test --filter "MacAITextImproverTests.UIConsistencyTests" --enable-test-discovery
     
     # Generate Coverage Report
     - name: Generate Code Coverage
       run: |
-        swift test --enable-code-coverage
+        swift test --enable-code-coverage --enable-test-discovery
         xcrun llvm-cov export -format="lcov" \
           .build/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS/MacAITextImproverPackageTests \
           -instr-profile .build/debug/codecov/default.profdata \
