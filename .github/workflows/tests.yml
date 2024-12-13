@@ -1,0 +1,83 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Run Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest]
+        xcode: ['14.2']
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: ${{ matrix.xcode }}
+    
+    # Feature Tests
+    - name: Run Writing Style Tests
+      run: swift test --filter "MacAITextImproverTests.WritingStyleTests"
+    
+    - name: Run AI Service Tests
+      run: swift test --filter "MacAITextImproverTests.AIServiceTests"
+    
+    - name: Run Speech Recognition Tests
+      run: swift test --filter "MacAITextImproverTests.SpeechRecognitionTests"
+    
+    - name: Run Text-to-Speech Tests
+      run: swift test --filter "MacAITextImproverTests.TextToSpeechTests"
+    
+    # UI Tests
+    - name: Run Content View Tests
+      run: swift test --filter "MacAITextImproverTests.ContentViewTests"
+    
+    - name: Run UI Consistency Tests
+      run: |
+        mkdir -p UIBaselines
+        swift test --filter "MacAITextImproverTests.UIConsistencyTests"
+    
+    # Generate Coverage Report
+    - name: Generate Code Coverage
+      run: |
+        swift test --enable-code-coverage
+        xcrun llvm-cov export -format="lcov" \
+          .build/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS/MacAITextImproverPackageTests \
+          -instr-profile .build/debug/codecov/default.profdata \
+          > coverage.lcov
+    
+    # Upload Coverage
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.lcov
+        fail_ci_if_error: true
+    
+    # Upload Test Results
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          .build/debug/codecov/
+          coverage.lcov
+          UIBaselines/
+    
+    # Report Test Results
+    - name: Create Test Report
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Swift Tests
+        path: .build/debug/codecov/*.json
+        reporter: jest-junit
+        fail-on-error: true 

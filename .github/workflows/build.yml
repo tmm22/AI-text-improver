@@ -1,4 +1,4 @@
-name: Build and Test
+name: Build
 
 on:
   push:
@@ -8,12 +8,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test:
-    name: Build and Test (${{ matrix.arch }})
+  build:
+    name: Build (${{ matrix.arch }})
     runs-on: macos-latest
     strategy:
       matrix:
         arch: [x86_64, arm64]
+        include:
+          - arch: x86_64
+            name: Intel
+          - arch: arm64
+            name: Apple Silicon
     
     steps:
     - uses: actions/checkout@v3
@@ -21,146 +26,44 @@ jobs:
     - name: Set up Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: latest-stable
-    
-    # Download UI Baselines
-    - name: Download UI Baselines
-      uses: actions/download-artifact@v3
-      with:
-        name: ui-baselines
-        path: UIBaselines
-      continue-on-error: true
+        xcode-version: '14.2'
     
     - name: Build for ${{ matrix.arch }}
       run: |
-        arch -${{ matrix.arch }} swift build -c release
-    
-    # Core Feature Tests
-    - name: Run Writing Style Tests
-      run: |
-        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.WritingStyleTests"
-    
-    - name: Run AI Service Tests
-      run: |
-        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.AIServiceTests"
-    
-    - name: Run Text-to-Speech Tests
-      run: |
-        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.TextToSpeechTests"
-    
-    - name: Run Speech Recognition Tests
-      run: |
-        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.SpeechRecognitionTests"
-    
-    # UI Tests
-    - name: Run UI Tests
-      run: |
-        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.ContentViewTests"
-    
-    # UI Consistency Tests
-    - name: Run UI Consistency Tests
-      run: |
-        # Create baseline directory if it doesn't exist
-        mkdir -p UIBaselines
+        # Clean any previous builds
+        rm -rf .build
+        rm -rf MacAITextImprover.app
         
-        # Run UI consistency tests
-        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.UIConsistencyTests"
+        # Build the project
+        arch -${{ matrix.arch }} swift build -c release
+        
+        # Create app bundle
+        APP_NAME="MacAITextImprover"
+        APP_DIR="$APP_NAME.app"
+        CONTENTS_DIR="$APP_DIR/Contents"
+        MACOS_DIR="$CONTENTS_DIR/MacOS"
+        RESOURCES_DIR="$CONTENTS_DIR/Resources"
+        
+        mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
+        cp ".build/release/$APP_NAME" "$MACOS_DIR/"
+        cp MacAITextImprover.app/Contents/Info.plist "$CONTENTS_DIR/"
     
-    # Documentation Tests
-    - name: Verify Documentation Sync
+    - name: Create DMG
       run: |
-        arch -${{ matrix.arch }} swift test --filter "MacAITextImproverTests.WritingStyleTests/testAllDocumentedStylesExist"
+        APP_NAME="MacAITextImprover"
+        hdiutil create -volname "$APP_NAME-${{ matrix.name }}" \
+                      -srcfolder "$APP_NAME.app" \
+                      -ov -format UDZO \
+                      "$APP_NAME-${{ matrix.name }}.dmg"
     
-    # Generate and Upload Coverage
-    - name: Generate Test Coverage Report
-      run: |
-        xcrun llvm-cov export \
-          .build/${{ matrix.arch }}-apple-macosx/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS/MacAITextImproverPackageTests \
-          -instr-profile=.build/debug/codecov/default.profdata \
-          -format=lcov > coverage.lcov
-    
-    - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.lcov
-        flags: ${{ matrix.arch }}
-        fail_ci_if_error: true
-    
-    # Upload Artifacts
-    - name: Upload Build Artifacts
+    - name: Upload App Bundle
       uses: actions/upload-artifact@v3
       with:
-        name: MacAITextImprover-${{ matrix.arch }}
-        path: .build/release/MacAITextImprover
+        name: MacAITextImprover-${{ matrix.name }}.app
+        path: MacAITextImprover.app
     
-    - name: Upload Test Results
+    - name: Upload DMG
       uses: actions/upload-artifact@v3
       with:
-        name: test-results-${{ matrix.arch }}
-        path: |
-          .build/debug/codecov/
-          coverage.lcov
-    
-    # Upload UI Baselines and Reports
-    - name: Upload UI Baselines and Reports
-      uses: actions/upload-artifact@v3
-      with:
-        name: ui-baselines
-        path: |
-          UIBaselines/
-          UIBaselines/Reports/
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-  # Baseline Management Job
-  manage-baselines:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Download UI Baselines
-      uses: actions/download-artifact@v3
-      with:
-        name: ui-baselines
-        path: UIBaselines
-    
-    - name: Commit Updated Baselines
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git add UIBaselines/
-        git commit -m "Update UI baselines [skip ci]" || echo "No changes to commit"
-        git push
-    
-    # Create GitHub Release with UI Change Report
-    - name: Create Release with UI Report
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: UIBaselines/Reports/*.md
-        body_path: UIBaselines/Reports/ui_changes_latest.md
-        draft: true
-        prerelease: false
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    # Add UI Report to Pull Request
-    - name: Comment PR with UI Changes
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const fs = require('fs');
-          const reports = fs.readdirSync('UIBaselines/Reports');
-          const latestReport = reports.sort().pop();
-          const reportContent = fs.readFileSync(`UIBaselines/Reports/${latestReport}`, 'utf8');
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.name,
-            body: reportContent
-          });
+        name: MacAITextImprover-${{ matrix.name }}.dmg
+        path: MacAITextImprover-${{ matrix.name }}.dmg
