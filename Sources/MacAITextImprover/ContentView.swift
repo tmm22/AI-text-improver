@@ -2,63 +2,28 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = ContentViewModel()
-    @AppStorage("anthropicKey") private var anthropicKey = ""
-    @AppStorage("openAIKey") private var openAIKey = ""
     @AppStorage("elevenLabsKey") private var elevenLabsKey = ""
     @State private var isElevenLabsKeyValid = false
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Mac AI Text Improver")
-                .font(.title)
-            
-            // API Keys Section
-            GroupBox(label: Text("API Keys")) {
-                VStack(alignment: .leading, spacing: 10) {
-                    SecureField("Anthropic API Key", text: $anthropicKey)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .onChange(of: anthropicKey) { newKey in
-                            viewModel.updateAPIKeys(anthropic: newKey, openAI: openAIKey)
-                        }
-                    
-                    SecureField("OpenAI API Key", text: $openAIKey)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .onChange(of: openAIKey) { newKey in
-                            viewModel.updateAPIKeys(anthropic: anthropicKey, openAI: newKey)
-                        }
-                    
-                    SecureField("ElevenLabs API Key", text: $elevenLabsKey)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .onChange(of: elevenLabsKey) { newKey in
-                            if !newKey.isEmpty {
-                                Task {
-                                    isElevenLabsKeyValid = await viewModel.validateElevenLabsKey(newKey)
-                                }
-                            } else {
-                                isElevenLabsKeyValid = false
-                            }
-                        }
-                }
-                .padding()
-            }
-            
-            // Service and Style Selectors
-            GroupBox(label: Text("AI Settings")) {
+        VStack {
+            // API Key Settings
+            GroupBox(label: Text("API Settings")) {
                 VStack(spacing: 15) {
-                    // Service Selector
+                    // Service Selection
                     Picker("AI Service", selection: $viewModel.selectedService) {
                         Text("Claude AI").tag(AIServiceType.anthropic)
                         Text("GPT-4").tag(AIServiceType.openAI)
                     }
                     .pickerStyle(SegmentedPickerStyle())
                     
-                    // Writing Style Selector
-                    Picker("Writing Style", selection: $viewModel.selectedStyle) {
-                        ForEach(WritingStyle.allCases, id: \.self) { style in
-                            Text(style.rawValue).tag(style)
+                    // API Keys
+                    SecureField("Anthropic API Key", text: $elevenLabsKey)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .onChange(of: elevenLabsKey) { newKey in
+                            viewModel.updateElevenLabsKey(newKey)
+                            isElevenLabsKeyValid = !newKey.isEmpty
                         }
-                    }
-                    .pickerStyle(MenuPickerStyle())
                 }
                 .padding()
             }
@@ -72,8 +37,8 @@ struct ContentView: View {
                         } else {
                             // Voice Selector
                             Picker("Voice", selection: $viewModel.selectedVoiceID) {
-                                ForEach(viewModel.voices) { voice in
-                                    Text(voice.name).tag(voice.voice_id)
+                                ForEach(viewModel.availableVoices) { voice in
+                                    Text(voice.name).tag(voice.id)
                                 }
                             }
                             .pickerStyle(MenuPickerStyle())
@@ -81,22 +46,14 @@ struct ContentView: View {
                             // Voice Parameters
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Stability: \(viewModel.stability, specifier: "%.2f")")
-                                Slider(value: $viewModel.stability, in: 0...1) { _ in
-                                    viewModel.updateVoiceSettings(
-                                        voiceID: viewModel.selectedVoiceID,
-                                        stability: viewModel.stability,
-                                        similarityBoost: viewModel.similarityBoost
-                                    )
-                                }
+                                Slider(value: $viewModel.stability, in: 0...1, onEditingChanged: { _ in
+                                    viewModel.updateVoiceSettings()
+                                })
                                 
                                 Text("Similarity Boost: \(viewModel.similarityBoost, specifier: "%.2f")")
-                                Slider(value: $viewModel.similarityBoost, in: 0...1) { _ in
-                                    viewModel.updateVoiceSettings(
-                                        voiceID: viewModel.selectedVoiceID,
-                                        stability: viewModel.stability,
-                                        similarityBoost: viewModel.similarityBoost
-                                    )
-                                }
+                                Slider(value: $viewModel.similarityBoost, in: 0...1, onEditingChanged: { _ in
+                                    viewModel.updateVoiceSettings()
+                                })
                             }
                         }
                     }
@@ -106,16 +63,29 @@ struct ContentView: View {
             
             // Text Input Area
             GroupBox(label: Text("Input/Output Text")) {
-                TextEditor(text: $viewModel.inputText)
-                    .frame(height: 200)
-                    .font(.body)
+                VStack {
+                    TextEditor(text: $viewModel.inputText)
+                        .frame(height: 200)
+                        .font(.body)
+                    
+                    if !viewModel.outputText.isEmpty {
+                        Divider()
+                        TextEditor(text: .constant(viewModel.outputText))
+                            .frame(height: 200)
+                            .font(.body)
+                    }
+                }
             }
             .padding()
             
             // Control Buttons
             HStack(spacing: 20) {
                 // Record Button
-                Button(action: viewModel.toggleRecording) {
+                Button(action: {
+                    Task {
+                        await viewModel.toggleRecording()
+                    }
+                }) {
                     Image(systemName: viewModel.isRecording ? "stop.circle.fill" : "mic.circle.fill")
                         .font(.system(size: 24))
                         .foregroundColor(viewModel.isRecording ? .red : .blue)
@@ -130,44 +100,35 @@ struct ContentView: View {
                 }
                 .disabled(viewModel.inputText.isEmpty || viewModel.isLoading)
                 
-                // Text-to-Speech Button - Only show if ElevenLabs key is valid
-                if isElevenLabsKeyValid {
-                    Button {
+                if isElevenLabsKeyValid && !viewModel.outputText.isEmpty {
+                    // Speak Text Button
+                    Button(action: {
                         Task {
-                            await viewModel.speakText()
+                            await viewModel.synthesizeSpeech()
                         }
-                    } label: {
-                        Image(systemName: "play.circle.fill")
+                    }) {
+                        Image(systemName: "speaker.wave.2.fill")
                             .font(.system(size: 24))
                     }
-                    .disabled(viewModel.inputText.isEmpty || viewModel.isLoading)
-                    .help("Read Text Aloud")
+                    .help("Speak Improved Text")
+                    .disabled(viewModel.isLoading)
                 }
             }
+            .padding()
             
-            // Status Messages
-            if viewModel.isRecording {
-                Text("Recording...")
-                    .foregroundColor(.red)
-            }
-            
+            // Error Message
             if let error = viewModel.errorMessage {
                 Text(error)
                     .foregroundColor(.red)
-                    .font(.caption)
+                    .padding()
             }
         }
         .padding()
-        .frame(minWidth: 700, minHeight: 800)
         .onAppear {
-            // Initialize APIs with stored keys
-            viewModel.updateAPIKeys(anthropic: anthropicKey, openAI: openAIKey)
-            
-            // Check ElevenLabs key validity
+            // Initialize ElevenLabs on launch if key exists
             if !elevenLabsKey.isEmpty {
-                Task {
-                    isElevenLabsKeyValid = await viewModel.validateElevenLabsKey(elevenLabsKey)
-                }
+                viewModel.updateElevenLabsKey(elevenLabsKey)
+                isElevenLabsKeyValid = true
             }
         }
     }

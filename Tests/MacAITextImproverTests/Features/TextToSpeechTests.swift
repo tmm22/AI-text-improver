@@ -28,6 +28,7 @@ final class TextToSpeechTests: XCTestCase {
     }
     
     func testVoiceSettings() async throws {
+        // Test with mock voice synthesis
         let api = MockElevenLabsAPI(apiKey: "test_key")
         
         // Update voice settings
@@ -72,6 +73,13 @@ final class TextToSpeechTests: XCTestCase {
 // MARK: - Mock Classes
 
 private class MockElevenLabsAPI: ElevenLabsAPI {
+    private let mockApiKey: String
+    
+    init(apiKey: String) {
+        self.mockApiKey = apiKey
+        super.init(apiKey: apiKey)
+    }
+    
     override func synthesizeSpeech(text: String) async throws -> URL {
         // Validate input
         guard !text.isEmpty else {
@@ -82,12 +90,7 @@ private class MockElevenLabsAPI: ElevenLabsAPI {
             )
         }
         
-        let apiKey = try Mirror(reflecting: self)
-            .children
-            .first { $0.label == "apiKey" }?
-            .value as? String ?? ""
-        
-        guard !apiKey.isEmpty else {
+        guard !mockApiKey.isEmpty else {
             throw NSError(
                 domain: "com.test",
                 code: 2,
@@ -107,12 +110,7 @@ private class MockElevenLabsAPI: ElevenLabsAPI {
     }
     
     override func getVoices() async throws -> [Voice] {
-        let apiKey = try Mirror(reflecting: self)
-            .children
-            .first { $0.label == "apiKey" }?
-            .value as? String ?? ""
-        
-        guard !apiKey.isEmpty else {
+        guard !mockApiKey.isEmpty else {
             throw NSError(
                 domain: "com.test",
                 code: 2,

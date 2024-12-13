@@ -4,6 +4,10 @@ class OpenAIAPI: AIService {
     private let apiKey: String
     private let baseURL = "https://api.openai.com/v1"
     
+    var isConfigured: Bool {
+        !apiKey.isEmpty
+    }
+    
     init(apiKey: String) {
         self.apiKey = apiKey
     }

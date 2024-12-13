@@ -4,10 +4,9 @@ A native macOS application that enhances text using AI models (Claude AI or GPT-
 
 ## Features
 
-### Text Improvement
-- Support for multiple AI models:
+- Multiple AI models support:
   - Anthropic's Claude AI (default)
-  - OpenAI's GPT-4
+  - OpenAI's GPT-4 (optional)
 - Multiple writing styles:
   - Professional
   - Academic
@@ -17,107 +16,54 @@ A native macOS application that enhances text using AI models (Claude AI or GPT-
   - Persuasive
   - Concise & Clear
   - Storytelling
-
-### Input Methods
-- Text input
 - Speech recognition for voice input
-
-### Text-to-Speech
-- High-quality voice synthesis using ElevenLabs
-- Multiple voice options
-- Adjustable voice parameters:
-  - Stability
-  - Similarity Boost
+- High-quality text-to-speech using ElevenLabs
+- Modern SwiftUI interface
+- Native macOS app experience
 
 ## Requirements
 
 - macOS 12.0 or later
 - Xcode 13.0 or later (for development)
 - API Keys:
-  - Anthropic API key
+  - Anthropic API key (required)
   - OpenAI API key (optional)
-  - ElevenLabs API key (optional, required for text-to-speech)
+  - ElevenLabs API key (optional, for text-to-speech)
 
 ## Installation
 
+1. Download the latest release for your Mac:
+   - Apple Silicon Macs: `MacAITextImprover-Apple-Silicon.dmg`
+   - Intel Macs: `MacAITextImprover-Intel.dmg`
+
+2. Open the downloaded DMG file and drag the app to your Applications folder
+
+3. Launch the app and configure your API keys in the settings
+
+## Building from Source
+
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/MacAITextImprover.git
-   cd MacAITextImprover
+   git clone https://github.com/tmm22/AI-text-improver.git
+   cd AI-text-improver
    ```
 
-2. Build the project:
+2. Build the app:
    ```bash
    chmod +x build.sh
    ./build.sh
    ```
 
-3. Run the app:
-   - Double-click `MacAITextImprover.app` in Finder, or
-   - Run from terminal: `.build/release/MacAITextImprover`
+3. The app will be built at `MacAITextImprover.app`
 
-## Configuration
+## Documentation
 
-1. Launch the app
-2. Enter your API keys in the settings:
-   - Anthropic API key (required)
-   - OpenAI API key (optional)
-   - ElevenLabs API key (optional, enables text-to-speech)
+Detailed documentation is available in the `docs` directory:
 
-API keys are securely stored in the macOS Keychain.
-
-## Usage
-
-1. Enter or paste text in the input area, or use speech recognition
-2. Select your preferred:
-   - AI service (Claude AI or OpenAI)
-   - Writing style
-   - Voice settings (if ElevenLabs is configured)
-3. Click "Improve Text" to enhance your text
-4. Use the play button to hear the improved text (requires ElevenLabs)
-
-## Development
-
-### Project Structure
-
-- `Sources/MacAITextImprover/`
-  - `main.swift` - Main app and UI
-  - `ContentViewModel.swift` - App logic and state management
-  - `AIService.swift` - AI service protocol and types
-  - `AnthropicAPI.swift` - Claude AI integration
-  - `OpenAIAPI.swift` - GPT-4 integration
-  - `ElevenLabsAPI.swift` - Text-to-speech integration
-  - `WritingStyle.swift` - Writing style definitions
-
-### Building
-
-```bash
-# Debug build
-swift build
-
-# Release build
-swift build -c release
-```
-
-### Creating App Bundle
-
-```bash
-mkdir -p MacAITextImprover.app/Contents/MacOS
-cp .build/release/MacAITextImprover MacAITextImprover.app/Contents/MacOS/
-```
-
-## Privacy
-
-The app requires the following permissions:
-- Microphone access (for speech recognition)
-- Speech Recognition permission
-- Internet access (for API communication)
-
-No data is stored or transmitted except to the specified API services.
-
-## License
-
-MIT License - See LICENSE file for details
+- [Installation Guide](docs/setup/INSTALLATION.md)
+- [Features Guide](docs/features/FEATURES.md)
+- [Development Guide](docs/development/DEVELOPMENT.md)
+- [Testing Guide](docs/development/TESTING.md)
 
 ## Contributing
 
@@ -127,6 +73,6 @@ MIT License - See LICENSE file for details
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## Support
+## License
 
-For support, please open an issue in the GitHub repository. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 

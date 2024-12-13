@@ -6,7 +6,7 @@ final class UpdateCheckerTests: XCTestCase {
     var updateChecker: UpdateChecker!
     
     override func setUp() async throws {
-        super.setUp()
+        try await super.setUp()
         updateChecker = UpdateChecker(
             currentVersion: "1.0.0",
             githubOwner: "test",
@@ -16,7 +16,7 @@ final class UpdateCheckerTests: XCTestCase {
     
     override func tearDown() async throws {
         updateChecker = nil
-        super.tearDown()
+        try await super.tearDown()
     }
     
     func testInitialization() async {
@@ -60,38 +60,41 @@ final class UpdateCheckerTests: XCTestCase {
 
 @MainActor
 private class MockUpdateChecker: UpdateChecker {
+    private let expectedVersion: String
+    
+    override init(currentVersion: String, githubOwner: String, githubRepo: String) {
+        self.expectedVersion = currentVersion
+        super.init(currentVersion: currentVersion, githubOwner: githubOwner, githubRepo: githubRepo)
+    }
+    
     override func checkForUpdates() async {
-        do {
-            let release = GitHubRelease(
-                tagName: "v2.0.0",
-                name: "Version 2.0.0",
-                body: "Test release notes",
-                assets: [
-                    GitHubAsset(
-                        name: "MacAITextImprover-Apple-Silicon.dmg",
-                        browserDownloadURL: "https://example.com/download"
-                    )
-                ]
-            )
+        let release = GitHubRelease(
+            tagName: "v2.0.0",
+            name: "Version 2.0.0",
+            body: "Test release notes",
+            assets: [
+                GitHubAsset(
+                    name: "MacAITextImprover-Apple-Silicon.dmg",
+                    browserDownloadURL: "https://example.com/download"
+                )
+            ]
+        )
+        
+        let version = release.tagName.hasPrefix("v") ? String(release.tagName.dropFirst()) : release.tagName
+        if version != expectedVersion {
+            self.isUpdateAvailable = true
+            self.latestVersion = version
+            self.releaseNotes = release.body
             
-            let version = release.tagName.hasPrefix("v") ? String(release.tagName.dropFirst()) : release.tagName
-            if version != currentVersion {
-                self.isUpdateAvailable = true
-                self.latestVersion = version
-                self.releaseNotes = release.body
-                
-                #if arch(arm64)
-                let assetName = "MacAITextImprover-Apple-Silicon.dmg"
-                #else
-                let assetName = "MacAITextImprover-Intel.dmg"
-                #endif
-                
-                self.downloadURL = release.assets
-                    .first { $0.name == assetName }
-                    .map { URL(string: $0.browserDownloadURL) } ?? nil
-            }
-        } catch {
-            print("Error checking for updates: \(error)")
+            #if arch(arm64)
+            let assetName = "MacAITextImprover-Apple-Silicon.dmg"
+            #else
+            let assetName = "MacAITextImprover-Intel.dmg"
+            #endif
+            
+            self.downloadURL = release.assets
+                .first { $0.name == assetName }
+                .map { URL(string: $0.browserDownloadURL) } ?? nil
         }
     }
 } 
