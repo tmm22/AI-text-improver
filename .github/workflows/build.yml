@@ -14,23 +14,45 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '15.0.1'
+          xcode-version: '15.2.0'
       
       - name: Build
         run: |
-          swift build -c release
-          mkdir -p MacAITextImprover.app/Contents/MacOS
-          cp .build/release/MacAITextImprover MacAITextImprover.app/Contents/MacOS/
+          # Clean any previous builds
+          rm -rf .build MacAITextImprover.app *.dmg
+          
+          # Build for both architectures
+          echo "Building for Apple Silicon..."
+          swift build -c release --arch arm64
+          
+          echo "Building for Intel..."
+          swift build -c release --arch x86_64
+          
+          # Create app bundle
+          mkdir -p MacAITextImprover.app/Contents/{MacOS,Resources}
+          
+          # Copy the appropriate binary based on architecture
+          if [[ $(uname -m) == 'arm64' ]]; then
+            cp .build/arm64-apple-macosx/release/MacAITextImprover MacAITextImprover.app/Contents/MacOS/
+          else
+            cp .build/x86_64-apple-macosx/release/MacAITextImprover MacAITextImprover.app/Contents/MacOS/
+          fi
+          
           chmod +x MacAITextImprover.app/Contents/MacOS/MacAITextImprover
       
       - name: Create DMG
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           DMG_NAME="MacAITextImprover-${VERSION}.dmg"
+          
+          echo "Creating DMG: ${DMG_NAME}"
           hdiutil create -volname "MacAITextImprover" \
                         -srcfolder MacAITextImprover.app \
                         -ov -format UDZO \
                         "${DMG_NAME}"
+          
+          echo "DMG created successfully:"
+          ls -la "${DMG_NAME}"
       
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -39,4 +61,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: MacAITextImprover-*.dmg
-          draft: true 
+          draft: true
