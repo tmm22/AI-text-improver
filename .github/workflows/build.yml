@@ -1,0 +1,75 @@
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check Environment
+        run: |
+          xcodebuild -version
+          swift --version
+      
+      - name: Build Project
+        run: |
+          # Clean and build
+          rm -rf .build MacAITextImprover.app *.dmg
+          mkdir -p artifacts
+          
+          # Build for both architectures
+          echo "Building for Apple Silicon..."
+          swift build -c release --arch arm64
+          
+          echo "Building for Intel..."
+          swift build -c release --arch x86_64
+          
+          # Create app bundle
+          mkdir -p MacAITextImprover.app/Contents/{MacOS,Resources}
+          cp .build/arm64-apple-macosx/release/MacAITextImprover MacAITextImprover.app/Contents/MacOS/
+          chmod +x MacAITextImprover.app/Contents/MacOS/MacAITextImprover
+      
+      - name: Create DMG
+        id: create_dmg
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          DMG_NAME="MacAITextImprover-${VERSION}.dmg"
+          
+          hdiutil create -volname "MacAITextImprover" \
+                        -srcfolder MacAITextImprover.app \
+                        -ov -format UDZO \
+                        "${DMG_NAME}"
+          
+          mv "${DMG_NAME}" artifacts/
+          echo "dmg_path=artifacts/${DMG_NAME}" >> $GITHUB_OUTPUT
+      
+      - name: Extract Release Notes
+        id: release_notes
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          awk "/## \[${VERSION}\]/,/## \[/" CHANGELOG.md | sed '$d' > artifacts/release_notes.md
+          echo "notes_path=artifacts/release_notes.md" >> $GITHUB_OUTPUT
+      
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts/
+          if-no-files-found: error
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.create_dmg.outputs.dmg_path }}
+          body_path: ${{ steps.release_notes.outputs.notes_path }}
+          draft: true 
