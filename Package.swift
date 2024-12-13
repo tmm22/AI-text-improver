@@ -7,17 +7,20 @@ let package = Package(
         .macOS(.v12)
     ],
     products: [
-        .executable(name: "MacAITextImprover", targets: ["MacAITextImprover"])
+        .executable(name: "MacAITextImprover", targets: ["MacAITextImprover"]),
+        .library(name: "MacAITextImproverLib", targets: ["MacAITextImprover"])
     ],
     dependencies: [],
     targets: [
         .executableTarget(
             name: "MacAITextImprover",
-            dependencies: []
+            dependencies: [],
+            path: "Sources/MacAITextImprover"
         ),
         .testTarget(
             name: "MacAITextImproverTests",
             dependencies: ["MacAITextImprover"],
+            path: "Tests/MacAITextImproverTests",
             resources: [
                 .copy("TestResources")
             ]
