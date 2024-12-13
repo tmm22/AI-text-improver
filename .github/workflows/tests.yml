@@ -26,18 +26,10 @@ jobs:
         swift --version
         swift package describe
     
-    # Generate Xcode project
-    - name: Generate Xcode project
-      run: swift package generate-xcodeproj
-    
     # Run tests
     - name: Run tests
       run: |
-        xcodebuild test \
-          -scheme MacAITextImprover-Package \
-          -destination 'platform=macOS' \
-          -only-testing:MacAITextImproverTests/WritingStyleTests \
-          -only-testing:MacAITextImproverTests/AIServiceTests
+        swift test --enable-test-discovery --parallel
     
     # Upload Test Results
     - name: Upload Test Results
