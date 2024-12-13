@@ -5,6 +5,17 @@ All notable changes to Mac AI Text Improver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] - 2024-03-13
+
+### Added
+- Multi-architecture support (Apple Silicon and Intel)
+- Separate build and test steps for each architecture
+
+### Changed
+- Updated to Xcode 15.2.0 for better compatibility
+- Improved build process with architecture-specific paths
+- Enhanced test execution for both platforms
+
 ## [1.0.13] - 2024-03-13
 
 ### Changed
