@@ -15,14 +15,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '15.2.0'
+    - name: Check Environment
+      run: |
+        xcodebuild -version
+        swift --version
+        xcrun --sdk macosx --show-sdk-path
     
     - name: Set up Swift
       run: |
-        swift --version
         swift package resolve
     
     - name: Create test directories
