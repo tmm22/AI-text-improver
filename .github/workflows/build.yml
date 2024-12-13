@@ -69,6 +69,9 @@ jobs:
           echo "App bundle creation failed"
           exit 1
         fi
+        
+        echo "App bundle contents:"
+        ls -R "$APP_DIR"
     
     - name: Create DMG
       id: create_dmg
@@ -81,6 +84,9 @@ jobs:
         echo "Creating DMG with version: $VERSION"
         echo "DMG name will be: $DMG_NAME"
         
+        # Create artifacts directory
+        mkdir -p artifacts
+        
         # List contents before DMG creation
         echo "Contents before DMG creation:"
         ls -la
@@ -89,19 +95,27 @@ jobs:
         hdiutil create -volname "$APP_NAME" \
                       -srcfolder "$APP_NAME.app" \
                       -ov -format UDZO \
-                      "$DMG_NAME"
+                      "artifacts/$DMG_NAME"
         
         # Verify DMG was created
-        if [ ! -f "$DMG_NAME" ]; then
+        if [ ! -f "artifacts/$DMG_NAME" ]; then
           echo "DMG creation failed"
           exit 1
         fi
         
-        echo "Created DMG: $DMG_NAME"
-        ls -la "$DMG_NAME"
+        echo "Created DMG: artifacts/$DMG_NAME"
+        ls -la artifacts/
         
         # Store DMG path for later use
-        echo "DMG_PATH=$DMG_NAME" >> $GITHUB_ENV
+        echo "DMG_PATH=artifacts/$DMG_NAME" >> $GITHUB_ENV
+        echo "DMG_NAME=$DMG_NAME" >> $GITHUB_ENV
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: dmg-artifact
+        path: artifacts/*.dmg
+        if-no-files-found: error
     
     - name: Prepare Release Notes
       id: release_notes
@@ -110,24 +124,23 @@ jobs:
         echo "Extracting release notes for version $VERSION"
         
         # Extract section between current version header and next version header
-        awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | sed '$d' > release_notes.md
+        awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | sed '$d' > artifacts/release_notes.md
         
         # Verify release notes were extracted
-        if [ ! -s release_notes.md ]; then
+        if [ ! -s artifacts/release_notes.md ]; then
           echo "Failed to extract release notes for version $VERSION"
           exit 1
         fi
         
         echo "Release notes content:"
-        cat release_notes.md
+        cat artifacts/release_notes.md
     
     - name: Create Release
-      id: create_release
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: ncipollo/release-action@v1.13.0
       with:
-        files: ${{ env.DMG_PATH }}
-        body_path: release_notes.md
-        name: "Version ${{ github.ref_name }}"
+        artifacts: "artifacts/*.dmg"
+        bodyFile: "artifacts/release_notes.md"
+        token: ${{ secrets.GITHUB_TOKEN }}
         draft: true
+        name: "Version ${{ github.ref_name }}"
+        allowUpdates: true
