@@ -20,6 +20,9 @@ jobs:
   test:
     name: Run Tests
     runs-on: macos-latest
+    env:
+      NSMicrophoneUsageDescription: "Testing microphone access"
+      NSSpeechRecognitionUsageDescription: "Testing speech recognition"
     
     steps:
     - uses: actions/checkout@v3
@@ -29,6 +32,13 @@ jobs:
       with:
         xcode-version: '14.2'
     
+    # Set up Swift environment
+    - name: Set up Swift
+      run: |
+        swift --version
+        swift package resolve
+        swift build
+    
     # Set up test environment
     - name: Set up test environment
       run: |
@@ -37,19 +47,23 @@ jobs:
         mkdir -p .build/debug/codecov
         mkdir -p .build/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS
         
-        # Enable test mode for permissions
-        defaults write com.apple.dt.xctest TestMode -bool YES
-        defaults write com.apple.dt.xctest HeadlessMode -bool YES
+        # Enable test modes
+        defaults write com.apple.dt.XCTest DisableForceWaitForPlatformQuiescence -bool YES
+        defaults write com.apple.dt.XCTest DisableTestsWaitingForAttachment -bool YES
+        defaults write com.apple.dt.XCTest DisableTestsWaitingForLaunch -bool YES
+        defaults write com.apple.dt.XCTest HeadlessMode -bool YES
         
-        # Mock speech recognition authorization
+        # Set up audio and speech recognition
         defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AuthorizationStatus -int 3
+        defaults write com.apple.security.temporary-exception.audio-unit-host -bool YES
+        defaults write com.apple.security.temporary-exception.mach-lookup.global-name "com.apple.audio.AudioComponentRegistrar" -bool YES
         
-        # Set up audio session (with error handling)
-        if sudo launchctl list | grep -q "com.apple.audio.coreaudiod"; then
-          sudo launchctl bootout system/com.apple.audio.coreaudiod 2>/dev/null || true
+        # Set up audio session
+        if pgrep coreaudiod > /dev/null; then
+          sudo pkill -9 coreaudiod || true
           sleep 2
         fi
-        sudo launchctl bootstrap system/com.apple.audio.coreaudiod
+        sudo launchctl load /System/Library/LaunchDaemons/com.apple.audio.coreaudiod.plist
         sleep 5
     
     # Feature Tests
