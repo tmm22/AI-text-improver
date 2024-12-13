@@ -1,5 +1,6 @@
 import Foundation
 
+@available(macOS 12.0, *)
 class UpdateChecker: ObservableObject {
     @Published var isUpdateAvailable = false
     @Published var latestVersion: String?
@@ -23,11 +24,11 @@ class UpdateChecker: ObservableObject {
             let latestRelease = try await fetchLatestRelease()
             
             // Compare versions
-            if let latestVersion = latestRelease.tagName.trimmingPrefix("v"),
-               compareVersions(latestVersion, isGreaterThan: currentVersion) {
+            let version = latestRelease.tagName.hasPrefix("v") ? String(latestRelease.tagName.dropFirst()) : latestRelease.tagName
+            if compareVersions(version, isGreaterThan: currentVersion) {
                 await MainActor.run {
                     self.isUpdateAvailable = true
-                    self.latestVersion = latestVersion
+                    self.latestVersion = version
                     self.releaseNotes = latestRelease.body
                     
                     // Find the appropriate asset for the current architecture

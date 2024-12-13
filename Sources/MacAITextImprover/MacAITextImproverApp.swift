@@ -13,6 +13,7 @@ struct MacAITextImproverApp: App {
                 ContentView()
                 UpdateNotificationView(updateChecker: updateChecker)
             }
+            .frame(minWidth: 700, minHeight: 800)
             .task {
                 // Check for updates when app launches
                 await updateChecker.checkForUpdates()
@@ -26,6 +27,5 @@ struct MacAITextImproverApp: App {
             }
         }
         .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
     }
 } 

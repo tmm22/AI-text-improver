@@ -13,10 +13,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "MacAITextImprover",
-            dependencies: [],
-            swiftSettings: [
-                .unsafeFlags(["-framework", "AppKit"])
-            ]
+            dependencies: []
         ),
         .testTarget(
             name: "MacAITextImproverTests",

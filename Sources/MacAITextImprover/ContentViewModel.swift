@@ -8,57 +8,52 @@ class ContentViewModel: ObservableObject {
     @Published var isRecording = false
     @Published var selectedService: AIServiceType = .anthropic
     @Published var selectedStyle: WritingStyle = .professional
-    @Published var voices: [Voice] = []
-    @Published var selectedVoiceID: String = "21m00Tcm4TlvDq8ikWAM" // Default voice (Rachel)
-    @Published var stability: Double = 0.5
-    @Published var similarityBoost: Double = 0.75
     @Published var isLoading = false
     @Published var errorMessage: String?
     
+    // ElevenLabs properties
+    @Published var voices: [Voice] = []
+    @Published var selectedVoiceID = "21m00Tcm4TlvDq8ikWAM" // Default voice (Rachel)
+    @Published var stability: Double = 0.5
+    @Published var similarityBoost: Double = 0.75
+    
     private var anthropicAPI: AnthropicAPI
     private var openAIAPI: OpenAIAPI
-    private var elevenLabsAPI: ElevenLabsAPI
+    private var elevenLabsAPI: ElevenLabsAPI?
+    
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))!
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
-    private var audioPlayer: AVAudioPlayer?
     
     init() {
         self.anthropicAPI = AnthropicAPI(apiKey: "")
         self.openAIAPI = OpenAIAPI(apiKey: "")
-        self.elevenLabsAPI = ElevenLabsAPI(apiKey: "")
     }
     
-    func updateAPIKeys(anthropic: String, openAI: String, elevenLabs: String) {
+    func updateAPIKeys(anthropic: String, openAI: String) {
         self.anthropicAPI = AnthropicAPI(apiKey: anthropic)
         self.openAIAPI = OpenAIAPI(apiKey: openAI)
-        self.elevenLabsAPI = ElevenLabsAPI(apiKey: elevenLabs)
-        
-        // Fetch available voices when API key is updated
-        Task {
-            await fetchVoices()
+    }
+    
+    func validateElevenLabsKey(_ key: String) async -> Bool {
+        do {
+            let api = ElevenLabsAPI(apiKey: key)
+            let voices = try await api.getVoices()
+            if !voices.isEmpty {
+                self.elevenLabsAPI = api
+                self.voices = voices
+                return true
+            }
+            return false
+        } catch {
+            self.errorMessage = "Invalid ElevenLabs API key"
+            return false
         }
     }
     
     func updateVoiceSettings(voiceID: String, stability: Double, similarityBoost: Double) {
-        self.selectedVoiceID = voiceID
-        self.stability = stability
-        self.similarityBoost = similarityBoost
-        self.elevenLabsAPI.updateSettings(voiceID: voiceID, 
-                                        stability: stability, 
-                                        similarityBoost: similarityBoost)
-    }
-    
-    func fetchVoices() async {
-        do {
-            isLoading = true
-            voices = try await elevenLabsAPI.getVoices()
-            isLoading = false
-        } catch {
-            errorMessage = "Failed to fetch voices: \(error.localizedDescription)"
-            isLoading = false
-        }
+        elevenLabsAPI?.updateSettings(voiceID: voiceID, stability: stability, similarityBoost: similarityBoost)
     }
     
     func toggleRecording() {
@@ -72,8 +67,12 @@ class ContentViewModel: ObservableObject {
     private func startRecording() {
         guard !isRecording else { return }
         
+        // Request authorization
         SFSpeechRecognizer.requestAuthorization { [weak self] status in
-            guard status == .authorized else { return }
+            guard status == .authorized else {
+                self?.errorMessage = "Speech recognition not authorized"
+                return
+            }
             
             Task { @MainActor in
                 self?.setupRecording()
@@ -82,24 +81,34 @@ class ContentViewModel: ObservableObject {
     }
     
     private func setupRecording() {
-        let inputNode = audioEngine.inputNode
-        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-        recognitionRequest?.shouldReportPartialResults = true
-        
-        recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest!) { [weak self] result, error in
-            if let result = result {
-                self?.inputText = result.bestTranscription.formattedString
+        do {
+            let inputNode = audioEngine.inputNode
+            recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+            recognitionRequest?.shouldReportPartialResults = true
+            
+            recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest!) { [weak self] result, error in
+                if let result = result {
+                    self?.inputText = result.bestTranscription.formattedString
+                }
+                
+                if error != nil {
+                    self?.stopRecording()
+                    self?.errorMessage = "Speech recognition error"
+                }
             }
+            
+            let recordingFormat = inputNode.outputFormat(forBus: 0)
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+                self.recognitionRequest?.append(buffer)
+            }
+            
+            audioEngine.prepare()
+            try audioEngine.start()
+            isRecording = true
+            errorMessage = nil
+        } catch {
+            errorMessage = "Failed to start recording: \(error.localizedDescription)"
         }
-        
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-            self.recognitionRequest?.append(buffer)
-        }
-        
-        audioEngine.prepare()
-        try? audioEngine.start()
-        isRecording = true
     }
     
     private func stopRecording() {
@@ -114,8 +123,15 @@ class ContentViewModel: ObservableObject {
     }
     
     func improveText() async {
+        guard !inputText.isEmpty else {
+            errorMessage = "Please enter some text to improve"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
         do {
-            isLoading = true
             let improvedText: String
             
             switch selectedService {
@@ -126,43 +142,40 @@ class ContentViewModel: ObservableObject {
             }
             
             inputText = improvedText
-            isLoading = false
         } catch {
             errorMessage = "Error improving text: \(error.localizedDescription)"
-            isLoading = false
         }
+        
+        isLoading = false
     }
     
     func speakText() async {
+        guard !inputText.isEmpty else {
+            errorMessage = "No text to speak"
+            return
+        }
+        
+        guard let api = elevenLabsAPI else {
+            errorMessage = "ElevenLabs API not configured"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
         do {
-            isLoading = true
-            // Stop any existing playback
-            audioPlayer?.stop()
+            let audioURL = try await api.synthesizeSpeech(text: inputText)
             
-            // Get audio file URL from ElevenLabs
-            let audioURL = try await elevenLabsAPI.synthesizeSpeech(text: inputText)
+            // Play the audio
+            let player = try AVAudioPlayer(contentsOf: audioURL)
+            player.play()
             
-            // Create and play audio
-            audioPlayer = try AVAudioPlayer(contentsOf: audioURL)
-            audioPlayer?.play()
-            
-            isLoading = false
+            // Clean up temporary file after playback
+            try? FileManager.default.removeItem(at: audioURL)
         } catch {
             errorMessage = "Error synthesizing speech: \(error.localizedDescription)"
-            isLoading = false
         }
-    }
-    
-    func validateElevenLabsKey() async -> Bool {
-        do {
-            isLoading = true
-            voices = try await elevenLabsAPI.getVoices()
-            isLoading = false
-            return !voices.isEmpty
-        } catch {
-            errorMessage = "Invalid ElevenLabs API key"
-            isLoading = false
-            return false
-        }
+        
+        isLoading = false
     }
 } 

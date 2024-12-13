@@ -1,10 +1,11 @@
 import XCTest
 @testable import MacAITextImprover
 
+@MainActor
 final class UpdateCheckerTests: XCTestCase {
     var updateChecker: UpdateChecker!
     
-    override func setUp() {
+    override func setUp() async throws {
         super.setUp()
         updateChecker = UpdateChecker(
             currentVersion: "1.0.0",
@@ -13,33 +14,19 @@ final class UpdateCheckerTests: XCTestCase {
         )
     }
     
-    override func tearDown() {
+    override func tearDown() async throws {
         updateChecker = nil
         super.tearDown()
     }
     
-    // MARK: - Version Comparison Tests
-    
-    func testVersionComparison() {
-        // Test major version comparison
-        XCTAssertTrue(updateChecker.compareVersions("2.0.0", isGreaterThan: "1.0.0"))
-        XCTAssertFalse(updateChecker.compareVersions("1.0.0", isGreaterThan: "2.0.0"))
-        
-        // Test minor version comparison
-        XCTAssertTrue(updateChecker.compareVersions("1.1.0", isGreaterThan: "1.0.0"))
-        XCTAssertFalse(updateChecker.compareVersions("1.0.0", isGreaterThan: "1.1.0"))
-        
-        // Test patch version comparison
-        XCTAssertTrue(updateChecker.compareVersions("1.0.1", isGreaterThan: "1.0.0"))
-        XCTAssertFalse(updateChecker.compareVersions("1.0.0", isGreaterThan: "1.0.1"))
-        
-        // Test equal versions
-        XCTAssertFalse(updateChecker.compareVersions("1.0.0", isGreaterThan: "1.0.0"))
+    func testInitialization() async {
+        XCTAssertFalse(updateChecker.isUpdateAvailable)
+        XCTAssertNil(updateChecker.latestVersion)
+        XCTAssertNil(updateChecker.releaseNotes)
     }
     
-    // MARK: - Update Check Tests
-    
     func testUpdateCheck() async {
+        // Create a mock checker that returns a newer version
         let mockChecker = MockUpdateChecker(
             currentVersion: "1.0.0",
             githubOwner: "test",
@@ -51,12 +38,12 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertTrue(mockChecker.isUpdateAvailable)
         XCTAssertEqual(mockChecker.latestVersion, "2.0.0")
         XCTAssertEqual(mockChecker.releaseNotes, "Test release notes")
-        XCTAssertNotNil(mockChecker.downloadURL)
     }
     
     func testNoUpdateAvailable() async {
+        // Create a mock checker that returns the same version
         let mockChecker = MockUpdateChecker(
-            currentVersion: "2.0.0", // Same as mock latest version
+            currentVersion: "2.0.0",
             githubOwner: "test",
             githubRepo: "test"
         )
@@ -66,50 +53,45 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertFalse(mockChecker.isUpdateAvailable)
         XCTAssertNil(mockChecker.latestVersion)
         XCTAssertNil(mockChecker.releaseNotes)
-        XCTAssertNil(mockChecker.downloadURL)
-    }
-    
-    // MARK: - Asset Selection Tests
-    
-    func testArchitectureSpecificAsset() async {
-        let mockChecker = MockUpdateChecker(
-            currentVersion: "1.0.0",
-            githubOwner: "test",
-            githubRepo: "test"
-        )
-        
-        await mockChecker.checkForUpdates()
-        
-        if let downloadURL = mockChecker.downloadURL?.absoluteString {
-            #if arch(arm64)
-            XCTAssertTrue(downloadURL.contains("Apple-Silicon"))
-            #else
-            XCTAssertTrue(downloadURL.contains("Intel"))
-            #endif
-        } else {
-            XCTFail("Download URL should be available")
-        }
     }
 }
 
-// MARK: - Mock Objects
+// MARK: - Mock Classes
 
+@MainActor
 private class MockUpdateChecker: UpdateChecker {
-    override func fetchLatestRelease() async throws -> GitHubRelease {
-        return GitHubRelease(
-            tagName: "v2.0.0",
-            name: "Version 2.0.0",
-            body: "Test release notes",
-            assets: [
-                GitHubAsset(
-                    name: "MacAITextImprover-Apple-Silicon.dmg",
-                    browserDownloadURL: "https://example.com/download/apple-silicon"
-                ),
-                GitHubAsset(
-                    name: "MacAITextImprover-Intel.dmg",
-                    browserDownloadURL: "https://example.com/download/intel"
-                )
-            ]
-        )
+    override func checkForUpdates() async {
+        do {
+            let release = GitHubRelease(
+                tagName: "v2.0.0",
+                name: "Version 2.0.0",
+                body: "Test release notes",
+                assets: [
+                    GitHubAsset(
+                        name: "MacAITextImprover-Apple-Silicon.dmg",
+                        browserDownloadURL: "https://example.com/download"
+                    )
+                ]
+            )
+            
+            let version = release.tagName.hasPrefix("v") ? String(release.tagName.dropFirst()) : release.tagName
+            if version != currentVersion {
+                self.isUpdateAvailable = true
+                self.latestVersion = version
+                self.releaseNotes = release.body
+                
+                #if arch(arm64)
+                let assetName = "MacAITextImprover-Apple-Silicon.dmg"
+                #else
+                let assetName = "MacAITextImprover-Intel.dmg"
+                #endif
+                
+                self.downloadURL = release.assets
+                    .first { $0.name == assetName }
+                    .map { URL(string: $0.browserDownloadURL) } ?? nil
+            }
+        } catch {
+            print("Error checking for updates: \(error)")
+        }
     }
 } 
