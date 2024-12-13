@@ -5,6 +5,22 @@ All notable changes to Mac AI Text Improver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2024-03-13
+
+### Fixed
+- Updated GitHub Actions to latest versions
+- Added proper shell options for error handling
+- Fixed variable quoting and interpolation
+- Added proper error handling for DMG detach
+- Improved workflow linting compliance
+
+## [1.0.8] - 2024-03-13
+
+### Changed
+- Updated to Xcode 15.2
+- Switched to macOS 14 runner for GitHub Actions
+- Improved build environment compatibility
+
 ## [1.0.7] - 2024-03-13
 
 ### Fixed
