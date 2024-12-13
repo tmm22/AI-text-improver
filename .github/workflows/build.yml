@@ -38,6 +38,10 @@ jobs:
       with:
         xcode-version: '14.2'
     
+    - name: Install GitHub CLI
+      run: |
+        brew install gh
+    
     - name: Build Project
       run: |
         # Clean and build
@@ -129,13 +133,6 @@ EOL
         
         echo "Release notes content:"
         cat artifacts/release_notes.md
-    
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: release-artifacts
-        path: artifacts/
-        if-no-files-found: error
     
     - name: Create Release
       env:
