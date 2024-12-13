@@ -5,6 +5,24 @@ All notable changes to Mac AI Text Improver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2024-03-13
+
+### Added
+- Comprehensive test coverage for all features
+- Code coverage reporting in CI/CD pipeline
+- Automated consistency checks for releases
+- Enhanced build verification steps
+
+### Changed
+- Improved CI/CD workflows with better error handling
+- Enhanced test infrastructure with mock implementations
+- Updated build process to verify app bundle integrity
+
+### Fixed
+- TextToSpeech tests now properly validate API keys
+- Test discovery and execution in CI environment
+- Build artifact verification and validation
+
 ## [1.0.1] - 2024-03-12
 
 ### Fixed
