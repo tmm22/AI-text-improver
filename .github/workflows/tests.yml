@@ -35,43 +35,32 @@ jobs:
         # Create test directories
         mkdir -p UIBaselines
         mkdir -p .build/debug/codecov
-        mkdir -p "$HOME/Library/Application Support/com.apple.TCC"
+        mkdir -p .build/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS
         
-        # Create TCC database if it doesn't exist
-        if [ ! -f "$HOME/Library/Application Support/com.apple.TCC/TCC.db" ]; then
-          sudo sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" "CREATE TABLE access (service TEXT NOT NULL, client TEXT NOT NULL, client_type INTEGER NOT NULL, allowed INTEGER NOT NULL, prompt_count INTEGER NOT NULL, csreq BLOB, policy_id INTEGER, indirect_object_identifier_type INTEGER, indirect_object_identifier TEXT NOT NULL, indirect_object_code_identity BLOB, flags INTEGER NOT NULL, last_modified INTEGER NOT NULL);"
-        fi
-        
-        # Set up permissions for Speech Recognition in tests
-        sudo sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" \
-          "INSERT OR REPLACE INTO access (service,client,client_type,allowed,prompt_count,csreq,policy_id,indirect_object_identifier_type,indirect_object_identifier,indirect_object_code_identity,flags,last_modified) VALUES('kTCCServiceMicrophone','com.apple.dt.xctest',0,1,1,NULL,NULL,0,'UNUSED',NULL,0,1);"
-        sudo sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" \
-          "INSERT OR REPLACE INTO access (service,client,client_type,allowed,prompt_count,csreq,policy_id,indirect_object_identifier_type,indirect_object_identifier,indirect_object_code_identity,flags,last_modified) VALUES('kTCCServiceSpeechRecognition','com.apple.dt.xctest',0,1,1,NULL,NULL,0,'UNUSED',NULL,0,1);"
-        
-        # Enable headless mode for tests
+        # Enable test mode for permissions
+        defaults write com.apple.dt.xctest TestMode -bool YES
         defaults write com.apple.dt.xctest HeadlessMode -bool YES
         
-        # Set up audio session
-        sudo launchctl bootout system/com.apple.audio.coreaudiod 2>/dev/null || true
-        sudo launchctl bootstrap system/com.apple.audio.coreaudiod
+        # Mock speech recognition authorization
+        defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AuthorizationStatus -int 3
         
-        # Wait for audio service to be ready
+        # Set up audio session (with error handling)
+        if sudo launchctl list | grep -q "com.apple.audio.coreaudiod"; then
+          sudo launchctl bootout system/com.apple.audio.coreaudiod 2>/dev/null || true
+          sleep 2
+        fi
+        sudo launchctl bootstrap system/com.apple.audio.coreaudiod
         sleep 5
     
     # Feature Tests
     - name: Run Writing Style Tests
-      run: |
-        mkdir -p .build/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS
-        swift test --filter "MacAITextImproverTests.WritingStyleTests" --enable-test-discovery
+      run: swift test --filter "MacAITextImproverTests.WritingStyleTests" --enable-test-discovery
     
     - name: Run AI Service Tests
       run: swift test --filter "MacAITextImproverTests.AIServiceTests" --enable-test-discovery
     
     - name: Run Speech Recognition Tests
-      run: |
-        # Mock speech recognition authorization for tests
-        defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AuthorizationStatus -int 3
-        swift test --filter "MacAITextImproverTests.SpeechRecognitionTests" --enable-test-discovery
+      run: swift test --filter "MacAITextImproverTests.SpeechRecognitionTests" --enable-test-discovery
     
     - name: Run Text-to-Speech Tests
       run: swift test --filter "MacAITextImproverTests.TextToSpeechTests" --enable-test-discovery
