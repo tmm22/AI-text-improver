@@ -5,6 +5,19 @@ All notable changes to Mac AI Text Improver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2024-03-13
+
+### Fixed
+- Release workflow artifacts handling
+- DMG file creation and attachment
+- Release notes extraction and formatting
+- Build process verification steps
+
+### Changed
+- Improved build workflow debugging
+- Enhanced artifact handling
+- Updated release creation process
+
 ## [1.0.2] - 2024-03-13
 
 ### Added
