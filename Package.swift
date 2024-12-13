@@ -13,14 +13,19 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "MacAITextImprover",
-            dependencies: []
+            dependencies: [],
+            path: "Sources/MacAITextImprover",
+            exclude: ["Info.plist"]
         ),
         .testTarget(
             name: "MacAITextImproverTests",
             dependencies: ["MacAITextImprover"],
+            path: "Tests/MacAITextImproverTests",
+            exclude: ["TestResources"],
             resources: [
                 .copy("TestResources")
             ]
         )
-    ]
+    ],
+    swiftLanguageVersions: [.v5]
 )

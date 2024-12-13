@@ -20,26 +20,22 @@ jobs:
       with:
         xcode-version: '14.2'
     
-    # Set up Swift environment
     - name: Set up Swift
       run: |
         swift --version
-        swift package describe
+        swift package resolve
     
-    # Generate Xcode project
-    - name: Generate Xcode project
-      run: swift package generate-xcodeproj
-    
-    # Run tests
-    - name: Run tests
+    - name: Create test directories
       run: |
-        xcodebuild test \
-          -scheme MacAITextImprover-Package \
-          -destination 'platform=macOS' \
-          -only-testing:MacAITextImproverTests/WritingStyleTests \
-          -only-testing:MacAITextImproverTests/AIServiceTests
+        mkdir -p .build/debug
+        mkdir -p Tests/MacAITextImproverTests
     
-    # Upload Test Results
+    - name: Run Tests
+      run: |
+        # Build and test
+        swift build
+        swift test --enable-test-discovery
+        
     - name: Upload Test Results
       if: always()
       uses: actions/upload-artifact@v3
