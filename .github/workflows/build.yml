@@ -18,13 +18,14 @@ jobs:
       
       - name: Check Environment
         run: |
+          xcodebuild -version
           swift --version
-          xcrun --version
-          
-      - name: Install Swift Dependencies
+          xcrun --sdk macosx --show-sdk-path
+      
+      - name: Create Xcode Project
         run: |
-          swift package resolve
-          swift package update
+          # Generate Xcode project from Package.swift
+          swift package generate-xcodeproj
       
       - name: Build Project
         run: |
@@ -32,16 +33,17 @@ jobs:
           rm -rf .build MacAITextImprover.app *.dmg
           mkdir -p artifacts
           
-          # Build universal binary
-          swift build -c release \
-            -Xswiftc "-target" \
-            -Xswiftc "arm64-apple-macosx" \
-            -Xswiftc "-target" \
-            -Xswiftc "x86_64-apple-macosx"
+          # Build for both architectures
+          xcodebuild -project MacAITextImprover.xcodeproj \
+                    -scheme MacAITextImprover \
+                    -configuration Release \
+                    -derivedDataPath ./DerivedData \
+                    -arch arm64 -arch x86_64 \
+                    build
           
           # Create app bundle
           mkdir -p MacAITextImprover.app/Contents/{MacOS,Resources}
-          cp .build/release/MacAITextImprover MacAITextImprover.app/Contents/MacOS/
+          cp ./DerivedData/Build/Products/Release/MacAITextImprover MacAITextImprover.app/Contents/MacOS/
           chmod +x MacAITextImprover.app/Contents/MacOS/MacAITextImprover
           
           # Create Info.plist
