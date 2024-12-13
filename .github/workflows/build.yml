@@ -20,14 +20,14 @@ jobs:
       with:
         xcode-version: '14.2'
     
-    - name: Build Universal Binary
+    - name: Build App
       run: |
         # Clean any previous builds
         rm -rf .build
         rm -rf MacAITextImprover.app
         
-        # Build for both architectures
-        swift build -c release --arch arm64 --arch x86_64
+        # Build the project
+        swift build -c release
         
         # Create app bundle
         APP_NAME="MacAITextImprover"
@@ -37,14 +37,14 @@ jobs:
         RESOURCES_DIR="$CONTENTS_DIR/Resources"
         
         mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
-        cp ".build/apple/Products/Release/$APP_NAME" "$MACOS_DIR/"
+        cp ".build/release/$APP_NAME" "$MACOS_DIR/"
         cp MacAITextImprover.app/Contents/Info.plist "$CONTENTS_DIR/"
     
     - name: Create DMG
       run: |
         APP_NAME="MacAITextImprover"
         VERSION=$(git describe --tags --abbrev=0)
-        DMG_NAME="$APP_NAME-Universal-${VERSION}.dmg"
+        DMG_NAME="$APP_NAME-${VERSION}.dmg"
         hdiutil create -volname "$APP_NAME" \
                       -srcfolder "$APP_NAME.app" \
                       -ov -format UDZO \
@@ -54,12 +54,12 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: MacAITextImprover.dmg
-        path: MacAITextImprover-Universal-*.dmg
+        path: MacAITextImprover-*.dmg
     
     - name: Upload to Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: MacAITextImprover-Universal-*.dmg
+        files: MacAITextImprover-*.dmg
         draft: false
         prerelease: false
