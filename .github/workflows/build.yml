@@ -22,24 +22,10 @@ jobs:
       with:
         xcode-version: '14.2'
     
-    - name: Get Version
-      id: get_version
-      run: |
-        # Get version from tag (remove 'v' prefix)
-        VERSION=${GITHUB_REF#refs/tags/v}
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-    
     - name: Build App
       run: |
-        # Clean any previous builds
-        rm -rf .build
-        rm -rf MacAITextImprover.app
-        
-        # Build the project
         swift build -c release
         
-        # Create app bundle
         APP_NAME="MacAITextImprover"
         APP_DIR="$APP_NAME.app"
         CONTENTS_DIR="$APP_DIR/Contents"
@@ -49,52 +35,22 @@ jobs:
         mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
         cp ".build/release/$APP_NAME" "$MACOS_DIR/"
         cp MacAITextImprover.app/Contents/Info.plist "$CONTENTS_DIR/"
-        
-        # Make executable
         chmod +x "$MACOS_DIR/$APP_NAME"
     
     - name: Create DMG
       run: |
         APP_NAME="MacAITextImprover"
+        VERSION=${GITHUB_REF#refs/tags/v}
         DMG_NAME="$APP_NAME-${VERSION}.dmg"
         
-        # Create DMG
         hdiutil create -volname "$APP_NAME" \
                       -srcfolder "$APP_NAME.app" \
                       -ov -format UDZO \
                       "$DMG_NAME"
-        
-        # Verify DMG was created
-        if [ ! -f "$DMG_NAME" ]; then
-          echo "DMG creation failed"
-          exit 1
-        fi
-        
-        echo "Created DMG: $DMG_NAME"
-        ls -la "$DMG_NAME"
-    
-    - name: Prepare Release Notes
-      run: |
-        # Extract the current version's changelog entry
-        VERSION_PATTERN="\[$VERSION\]"
-        NEXT_VERSION_PATTERN="## \["
-        
-        # Create release notes file
-        echo "# Release v$VERSION" > release_notes.md
-        echo "" >> release_notes.md
-        
-        # Extract changelog section for this version
-        sed -n "/## ${VERSION_PATTERN}/,/${NEXT_VERSION_PATTERN}/p" CHANGELOG.md | \
-        sed '$d' >> release_notes.md
     
     - name: Release
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
       with:
-        name: "Version ${{ env.VERSION }}"
-        body_path: release_notes.md
-        files: |
-          MacAITextImprover-*.dmg
+        files: MacAITextImprover-*.dmg
+        body_file: CHANGELOG.md
         draft: true
-        token: ${{ secrets.GITHUB_TOKEN }}
-        fail_on_unmatched_files: true
