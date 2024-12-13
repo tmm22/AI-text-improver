@@ -31,14 +31,15 @@ jobs:
     - name: Set up test environment
       run: |
         mkdir -p .build/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS
+        mkdir -p Tests/MacAITextImproverTests
         defaults write com.apple.dt.XCTest HeadlessMode -bool YES
     
     # Start with just the basic tests
     - name: Run Writing Style Tests
-      run: swift test --filter "MacAITextImproverTests.WritingStyleTests" --enable-test-discovery
+      run: swift test --filter "MacAITextImproverTests.WritingStyleTests" --enable-test-discovery --test-product MacAITextImproverPackageTests
     
     - name: Run AI Service Tests
-      run: swift test --filter "MacAITextImproverTests.AIServiceTests" --enable-test-discovery
+      run: swift test --filter "MacAITextImproverTests.AIServiceTests" --enable-test-discovery --test-product MacAITextImproverPackageTests
     
     # Upload Test Results
     - name: Upload Test Results
