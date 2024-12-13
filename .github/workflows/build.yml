@@ -86,7 +86,7 @@ jobs:
         echo "Created DMG: $DMG_NAME"
         ls -la "$DMG_NAME"
     
-    - name: Extract Release Notes
+    - name: Prepare Release Notes
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
         echo "Extracting release notes for version $VERSION"
@@ -107,7 +107,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: "MacAITextImprover-*.dmg"
-        body_file: release_notes.md
+        body_path: release_notes.md
         name: "Version ${{ github.ref_name }}"
         draft: true
         fail_on_unmatched_files: true
