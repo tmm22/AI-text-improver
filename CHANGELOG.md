@@ -5,37 +5,39 @@ All notable changes to Mac AI Text Improver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2024-03-12
+
+### Fixed
+- Improved test workflow configuration
+- Enhanced package structure for better test discovery
+- Added explicit paths in Package.swift
+- Added library product for better dependency management
+
 ## [1.0.0] - 2024-03-12
 
 ### Added
-- Initial release
-- Support for multiple AI models:
-  - Anthropic's Claude AI (default)
-  - OpenAI's GPT-4 (optional)
-- Multiple writing styles:
-  - Professional
-  - Academic
-  - Casual & Friendly
-  - Creative & Playful
-  - Technical
-  - Persuasive
-  - Concise & Clear
-  - Storytelling
-- Speech recognition for voice input
-- High-quality text-to-speech using ElevenLabs
-- Voice customization:
-  - Multiple voice options
-  - Adjustable stability
-  - Adjustable similarity boost
-- Universal binary support:
-  - Apple Silicon (arm64)
-  - Intel (x86_64)
-- Secure API key storage
-- Modern SwiftUI interface
-- Real-time voice-to-text
-- Comprehensive documentation
+- Initial release with core features:
+  - Multiple AI model support (Claude AI and GPT-4)
+  - Eight writing styles (Professional, Academic, etc.)
+  - Speech recognition for voice input
+  - High-quality text-to-speech using ElevenLabs
+  - Modern SwiftUI interface
+  - Native macOS app experience
+- Comprehensive test suite:
+  - Feature tests for all core functionality
+  - UI tests with baseline comparison
+  - Test coverage reporting
+- Automated build system:
+  - Universal binary support (Intel and Apple Silicon)
+  - DMG creation for easy distribution
+  - GitHub Actions integration
+- Complete documentation:
+  - Installation guide
+  - Feature documentation
+  - Development guide
+  - Testing guide
 
 ### Security
-- Secure storage of API keys in macOS Keychain
+- Secure API key storage in macOS Keychain
 - No data stored locally except configuration
-- All API communications over HTTPS 
+- All API communications over HTTPS
