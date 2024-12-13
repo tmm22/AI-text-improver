@@ -17,14 +17,16 @@ class ContentViewModel: ObservableObject {
     private var anthropicAPI: AnthropicAPI
     private var openAIAPI: OpenAIAPI
     private var elevenLabsAPI: ElevenLabsAPI?
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))!
+    private let speechRecognizer: SFSpeechRecognizer
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    private let audioEngine = AVAudioEngine()
+    private let audioEngine: AVAudioEngine
     
-    init() {
+    init(locale: Locale = .init(identifier: "en-US")) {
         self.anthropicAPI = AnthropicAPI(apiKey: "")
         self.openAIAPI = OpenAIAPI(apiKey: "")
+        self.speechRecognizer = SFSpeechRecognizer(locale: locale)!
+        self.audioEngine = AVAudioEngine()
     }
     
     func updateAPIKeys(anthropic: String, openAI: String) {
@@ -64,28 +66,32 @@ class ContentViewModel: ObservableObject {
     
     private func startRecording() {
         guard !isRecording else { return }
+        guard let speechRecognizer = speechRecognizer else {
+            errorMessage = "Speech recognizer not available for the current locale"
+            return
+        }
         
         // Request authorization
         SFSpeechRecognizer.requestAuthorization { [weak self] status in
             guard let self = self else { return }
             
-            switch status {
-            case .authorized:
-                Task { @MainActor in
+            Task { @MainActor in
+                switch status {
+                case .authorized:
                     do {
                         try await self.setupRecording()
                     } catch {
                         self.errorMessage = "Failed to start recording: \(error.localizedDescription)"
                     }
+                case .denied:
+                    self.errorMessage = "Speech recognition permission denied. Please enable in System Settings."
+                case .restricted:
+                    self.errorMessage = "Speech recognition is restricted on this device."
+                case .notDetermined:
+                    self.errorMessage = "Speech recognition permission not determined."
+                @unknown default:
+                    self.errorMessage = "Unknown speech recognition authorization status."
                 }
-            case .denied:
-                self.errorMessage = "Speech recognition permission denied. Please enable in System Settings."
-            case .restricted:
-                self.errorMessage = "Speech recognition is restricted on this device."
-            case .notDetermined:
-                self.errorMessage = "Speech recognition permission not determined."
-            @unknown default:
-                self.errorMessage = "Unknown speech recognition authorization status."
             }
         }
     }
@@ -108,14 +114,16 @@ class ContentViewModel: ObservableObject {
         recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
             guard let self = self else { return }
             
-            if let error = error {
-                self.errorMessage = "Speech recognition error: \(error.localizedDescription)"
-                self.stopRecording()
-                return
-            }
-            
-            if let result = result {
-                self.inputText = result.bestTranscription.formattedString
+            Task { @MainActor in
+                if let error = error {
+                    self.errorMessage = "Speech recognition error: \(error.localizedDescription)"
+                    self.stopRecording()
+                    return
+                }
+                
+                if let result = result {
+                    self.inputText = result.bestTranscription.formattedString
+                }
             }
         }
         

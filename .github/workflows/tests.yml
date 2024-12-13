@@ -1,4 +1,4 @@
-name: Test Suite
+name: Tests
 
 on:
   push:
@@ -9,12 +9,8 @@ on:
 
 jobs:
   test:
-    name: Run Tests (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-latest]
-        xcode: ['14.2']
+    name: Run Tests
+    runs-on: macos-latest
     
     steps:
     - uses: actions/checkout@v3
@@ -22,7 +18,18 @@ jobs:
     - name: Set up Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: ${{ matrix.xcode }}
+        xcode-version: '14.2'
+    
+    # Set up test environment
+    - name: Set up test environment
+      run: |
+        # Create test directories
+        mkdir -p UIBaselines
+        mkdir -p .build/debug/codecov
+        
+        # Set up permissions for Speech Recognition in tests
+        defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AllowAudioDucking -bool YES
+        defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AllowHeadlessModeForTests -bool YES
     
     # Feature Tests
     - name: Run Writing Style Tests
@@ -32,19 +39,23 @@ jobs:
       run: swift test --filter "MacAITextImproverTests.AIServiceTests"
     
     - name: Run Speech Recognition Tests
-      run: swift test --filter "MacAITextImproverTests.SpeechRecognitionTests"
+      run: |
+        # Mock speech recognition authorization for tests
+        defaults write com.apple.speech.recognition.AppleSpeechRecognitionServer AuthorizationStatus -int 3
+        swift test --filter "MacAITextImproverTests.SpeechRecognitionTests"
     
     - name: Run Text-to-Speech Tests
       run: swift test --filter "MacAITextImproverTests.TextToSpeechTests"
     
     # UI Tests
     - name: Run Content View Tests
-      run: swift test --filter "MacAITextImproverTests.ContentViewTests"
+      run: |
+        # Set up UI test environment
+        defaults write com.apple.CoreSimulator.IndigoFramebufferServices FramebufferStatus -bool NO
+        swift test --filter "MacAITextImproverTests.ContentViewTests"
     
     - name: Run UI Consistency Tests
-      run: |
-        mkdir -p UIBaselines
-        swift test --filter "MacAITextImproverTests.UIConsistencyTests"
+      run: swift test --filter "MacAITextImproverTests.UIConsistencyTests"
     
     # Generate Coverage Report
     - name: Generate Code Coverage
@@ -72,12 +83,35 @@ jobs:
           coverage.lcov
           UIBaselines/
     
-    # Report Test Results
-    - name: Create Test Report
+    # Create Test Report
+    - name: Create Test Summary
       if: always()
-      uses: dorny/test-reporter@v1
+      run: |
+        echo "# Test Results Summary" > test_summary.md
+        echo "" >> test_summary.md
+        echo "## Coverage Report" >> test_summary.md
+        echo "\`\`\`" >> test_summary.md
+        cat coverage.lcov | grep -E "^SF:|^LF:|^LH:" >> test_summary.md
+        echo "\`\`\`" >> test_summary.md
+        
+        # Add UI test results if available
+        if [ -d "UIBaselines/Reports" ]; then
+          echo "" >> test_summary.md
+          echo "## UI Test Results" >> test_summary.md
+          cat UIBaselines/Reports/*.md >> test_summary.md
+        fi
+    
+    # Add PR Comment
+    - name: Comment PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
       with:
-        name: Swift Tests
-        path: .build/debug/codecov/*.json
-        reporter: jest-junit
-        fail-on-error: true 
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('test_summary.md', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.name,
+            body: summary
+          });
