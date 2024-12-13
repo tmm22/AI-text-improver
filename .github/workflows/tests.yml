@@ -20,9 +20,20 @@ jobs:
       with:
         xcode-version: '14.2'
     
+    - name: Set up Swift
+      run: |
+        swift --version
+        swift package resolve
+    
+    - name: Create test directories
+      run: |
+        mkdir -p .build/debug
+        mkdir -p Tests/MacAITextImproverTests
+    
     - name: Run Tests
       run: |
         # Build and test
+        swift build
         swift test --enable-test-discovery
         
     - name: Upload Test Results
