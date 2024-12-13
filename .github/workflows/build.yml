@@ -16,69 +16,17 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: Check Environment
+      - name: Build Local App Bundle
         run: |
-          swift --version
-          xcrun --find swift
-          xcrun --sdk macosx --show-sdk-path
-      
-      - name: Set Build Environment
-        run: |
-          TOOLCHAIN_PATH=$(dirname $(dirname $(xcrun --find swift)))
-          SDK_PATH=$(xcrun --sdk macosx --show-sdk-path)
-          echo "TOOLCHAIN_PATH=${TOOLCHAIN_PATH}" >> $GITHUB_ENV
-          echo "SDK_PATH=${SDK_PATH}" >> $GITHUB_ENV
-      
-      - name: Build Project
-        run: |
-          # Clean and build
-          rm -rf .build MacAITextImprover.app *.dmg
-          mkdir -p artifacts
+          # Run the local build script
+          chmod +x build.sh
+          ./build.sh
           
-          # Build with explicit SDK and toolchain
-          SDKROOT="${SDK_PATH}" \
-          TOOLCHAINS="com.apple.dt.toolchain.XcodeDefault" \
-          swift build -c release \
-            -Xswiftc "-sdk" -Xswiftc "${SDK_PATH}" \
-            -Xswiftc "-target" -Xswiftc "arm64-apple-macosx" \
-            -Xswiftc "-target" -Xswiftc "x86_64-apple-macosx"
-          
-          # Create app bundle
-          mkdir -p MacAITextImprover.app/Contents/{MacOS,Resources}
-          cp .build/release/MacAITextImprover MacAITextImprover.app/Contents/MacOS/
-          chmod +x MacAITextImprover.app/Contents/MacOS/MacAITextImprover
-          
-          # Create Info.plist
-          cat > "MacAITextImprover.app/Contents/Info.plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleExecutable</key>
-    <string>MacAITextImprover</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.example.macaitextimprover</string>
-    <key>CFBundleName</key>
-    <string>Mac AI Text Improver</string>
-    <key>CFBundleShortVersionString</key>
-    <string>${GITHUB_REF#refs/tags/v}</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>12.0</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.productivity</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>We need access to your microphone for speech recognition.</string>
-    <key>NSSpeechRecognitionUsageDescription</key>
-    <string>We need speech recognition permission to convert your speech to text.</string>
-</dict>
-</plist>
-EOF
+          # Verify the app bundle was created
+          if [ ! -d "MacAITextImprover.app" ]; then
+            echo "App bundle was not created"
+            exit 1
+          fi
       
       - name: Create DMG
         id: create_dmg
@@ -86,19 +34,29 @@ EOF
           VERSION=${GITHUB_REF#refs/tags/v}
           DMG_NAME="MacAITextImprover-${VERSION}.dmg"
           
+          # Create DMG
           hdiutil create -volname "MacAITextImprover" \
                         -srcfolder MacAITextImprover.app \
                         -ov -format UDZO \
                         "${DMG_NAME}"
           
+          # Create artifacts directory and move DMG
+          mkdir -p artifacts
           mv "${DMG_NAME}" artifacts/
+          
+          # Set output for release step
           echo "dmg_path=artifacts/${DMG_NAME}" >> $GITHUB_OUTPUT
+          
+          # List contents for verification
+          ls -la artifacts/
       
       - name: Extract Release Notes
         id: release_notes
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Extracting release notes for version ${VERSION}"
           awk "/## \[${VERSION}\]/,/## \[/" CHANGELOG.md | sed '$d' > artifacts/release_notes.md
+          cat artifacts/release_notes.md
           echo "notes_path=artifacts/release_notes.md" >> $GITHUB_OUTPUT
       
       - name: Upload Artifacts
