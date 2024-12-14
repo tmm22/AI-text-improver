@@ -112,6 +112,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     
     # Download artifacts
     - name: Download Build Artifacts
@@ -122,16 +124,29 @@ jobs:
     # Generate Release Notes
     - name: Extract Release Notes
       run: |
-        # Extract the latest release notes section from CHANGELOG.md
-        awk '/^## \[.*\]/{p=NR+1}(NR<=p){print}' CHANGELOG.md | head -n 1 > version.txt
-        VERSION=$(cat version.txt | grep -o '\[.*\]' | tr -d '[]')
+        # Get version from tag
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "Extracting release notes for version $VERSION"
         
-        # Extract content between this version and the next version header
-        awk -v ver="## [$VERSION]" '
-          $0 ~ ver {p=1;next}
-          /^## \[.*\]/{p=0}
-          p{print}
-        ' CHANGELOG.md > release_notes.md
+        # Ensure CHANGELOG.md exists
+        if [ ! -f CHANGELOG.md ]; then
+          echo "Error: CHANGELOG.md not found"
+          exit 1
+        fi
+        
+        # Extract the section for this version
+        sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' > release_notes.md
+        
+        # Check if we got any content
+        if [ ! -s release_notes.md ]; then
+          echo "Error: No release notes found for version $VERSION"
+          echo "Content of CHANGELOG.md:"
+          cat CHANGELOG.md
+          exit 1
+        fi
+        
+        echo "Generated release notes:"
+        cat release_notes.md
     
     # Create Release
     - name: Create Release
