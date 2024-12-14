@@ -5,6 +5,12 @@ All notable changes to Mac AI Text Improver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.26] - 2024-03-14
+
+### Fixed
+- Fixed GitHub release notes not showing up in releases by improving the release workflow
+- Updated release notes extraction to properly use CHANGELOG.md content
+
 ## [1.0.25] - 2024-03-13
 
 ### Fixed
