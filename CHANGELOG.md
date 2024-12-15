@@ -265,3 +265,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Secure API key storage in macOS Keychain
 - No data stored locally except configuration
 - All API communications over HTTPS
+
+## [1.0.29] - 2024-03-14
+
+### Fixed
+- Improved release notes extraction in GitHub Actions workflow
+- Enhanced reliability of CHANGELOG parsing
+- Fixed release creation process
