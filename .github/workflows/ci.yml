@@ -1,0 +1,61 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '16.1.0'
+    
+    # Run Tests
+    - name: Run Feature Tests
+      run: |
+        swift test --filter "MacAITextImproverTests.WritingStyleTests"
+        swift test --filter "MacAITextImproverTests.AIServiceTests"
+        swift test --filter "MacAITextImproverTests.SpeechRecognitionTests"
+        swift test --filter "MacAITextImproverTests.TextToSpeechTests"
+    
+    - name: Run UI Tests
+      run: |
+        mkdir -p UIBaselines
+        swift test --filter "MacAITextImproverTests.ContentViewTests"
+        swift test --filter "MacAITextImproverTests.UIConsistencyTests"
+    
+    # Generate Coverage
+    - name: Generate Code Coverage
+      run: |
+        swift test --enable-code-coverage
+        xcrun llvm-cov export -format="lcov" \
+          .build/debug/MacAITextImproverPackageTests.xctest/Contents/MacOS/MacAITextImproverPackageTests \
+          -instr-profile .build/debug/codecov/default.profdata \
+          > coverage.lcov
+    
+    # Upload Coverage
+    - name: Upload Coverage Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: code-coverage
+        path: coverage.lcov
+    
+    # Upload Test Results
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          .build/debug/codecov/
+          UIBaselines/ 
