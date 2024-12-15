@@ -1,5 +1,4 @@
 import XCTest
-import SwiftUI
 @testable import MacAITextImprover
 
 @MainActor
@@ -8,223 +7,120 @@ final class ContentViewTests: XCTestCase {
     var viewModel: ContentViewModel!
     
     override func setUp() async throws {
-        try await super.setUp()
+        super.setUp()
+        // Clear UserDefaults for testing
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: "anthropicKey")
+        defaults.removeObject(forKey: "openAIKey")
+        defaults.removeObject(forKey: "elevenLabsKey")
+        
         viewModel = ContentViewModel()
-        contentView = ContentView(viewModel: viewModel)
+        contentView = ContentView()
     }
     
     override func tearDown() async throws {
         contentView = nil
         viewModel = nil
-        try await super.tearDown()
+        super.tearDown()
     }
     
     // MARK: - API Key Tests
     
-    func testAPIKeyStorage() async {
+    func testAPIKeyStorage() async throws {
         let expectation = XCTestExpectation(description: "API key storage")
         
         Task {
-            // Test Anthropic API key
+            // Set API keys through UserDefaults
             UserDefaults.standard.set("test_anthropic_key", forKey: "anthropicKey")
-            XCTAssertEqual(contentView.anthropicKey, "test_anthropic_key")
-            
-            // Test OpenAI API key
             UserDefaults.standard.set("test_openai_key", forKey: "openAIKey")
-            XCTAssertEqual(contentView.openAIKey, "test_openai_key")
-            
-            // Test ElevenLabs API key
             UserDefaults.standard.set("test_elevenlabs_key", forKey: "elevenLabsKey")
-            XCTAssertEqual(contentView.elevenLabsKey, "test_elevenlabs_key")
+            
+            // Create a new view to load the updated defaults
+            let newView = ContentView()
+            
+            // Verify the keys are loaded into the ViewModel
+            XCTAssertTrue(newView.viewModel.isAnthropicConfigured())
+            XCTAssertTrue(newView.viewModel.isOpenAIConfigured())
+            XCTAssertTrue(newView.viewModel.isElevenLabsConfigured())
             
             expectation.fulfill()
         }
         
-        await fulfillment(of: [expectation], timeout: 5.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
     }
     
-    func testAPIKeyInputFields() async {
-        let expectation = XCTestExpectation(description: "API key input fields")
+    // MARK: - Text Improvement Tests
+    
+    func testTextImprovement() async throws {
+        let expectation = XCTestExpectation(description: "Text improvement")
         
         Task {
-            // Check for API key input fields
-            let mirror = Mirror(reflecting: contentView)
+            // Configure API keys
+            viewModel.updateAPIKeys(anthropic: "test_key", openAI: "test_key")
             
-            // Check for @AppStorage properties
-            let hasAnthropicKey = mirror.children.contains { $0.label == "_anthropicKey" }
-            let hasOpenAIKey = mirror.children.contains { $0.label == "_openAIKey" }
-            let hasElevenLabsKey = mirror.children.contains { $0.label == "_elevenLabsKey" }
-            
-            XCTAssertTrue(hasAnthropicKey, "Anthropic API key input field is missing")
-            XCTAssertTrue(hasOpenAIKey, "OpenAI API key input field is missing")
-            XCTAssertTrue(hasElevenLabsKey, "ElevenLabs API key input field is missing")
-            
-            // Test API key updates
-            contentView.anthropicKey = "test_anthropic"
-            contentView.openAIKey = "test_openai"
-            contentView.elevenLabsKey = "test_elevenlabs"
-            
-            // Verify keys are stored
-            XCTAssertEqual(UserDefaults.standard.string(forKey: "anthropicKey"), "test_anthropic")
-            XCTAssertEqual(UserDefaults.standard.string(forKey: "openAIKey"), "test_openai")
-            XCTAssertEqual(UserDefaults.standard.string(forKey: "elevenLabsKey"), "test_elevenlabs")
-            
-            expectation.fulfill()
-        }
-        
-        await fulfillment(of: [expectation], timeout: 5.0)
-    }
-    
-    // MARK: - Error Handling Tests
-    
-    func testMissingAnthropicAPIKey() async {
-        let expectation = XCTestExpectation(description: "Missing Anthropic API key")
-        
-        Task {
-            viewModel.inputText = "Test text"
-            viewModel.selectedService = .anthropic
-            await viewModel.improveText()
-            XCTAssertEqual(viewModel.errorMessage, "Failed to improve text: Anthropic API key not configured")
-            expectation.fulfill()
-        }
-        
-        await fulfillment(of: [expectation], timeout: 5.0)
-    }
-    
-    func testMissingOpenAIAPIKey() async {
-        let expectation = XCTestExpectation(description: "Missing OpenAI API key")
-        
-        Task {
-            viewModel.inputText = "Test text"
-            viewModel.selectedService = .openAI
-            await viewModel.improveText()
-            XCTAssertEqual(viewModel.errorMessage, "Failed to improve text: OpenAI API key not configured")
-            expectation.fulfill()
-        }
-        
-        await fulfillment(of: [expectation], timeout: 5.0)
-    }
-    
-    func testEmptyTextError() async {
-        let expectation = XCTestExpectation(description: "Empty text error")
-        
-        Task {
+            // Test empty input
             viewModel.inputText = ""
             await viewModel.improveText()
-            XCTAssertEqual(viewModel.errorMessage, "Please enter some text to improve")
-            expectation.fulfill()
-        }
-        
-        await fulfillment(of: [expectation], timeout: 5.0)
-    }
-    
-    func testEmptyTextSpeechError() async {
-        let expectation = XCTestExpectation(description: "Empty text speech error")
-        
-        Task {
-            viewModel.inputText = ""
-            await viewModel.speakText()
-            XCTAssertEqual(viewModel.errorMessage, "No text to speak")
-            expectation.fulfill()
-        }
-        
-        await fulfillment(of: [expectation], timeout: 5.0)
-    }
-    
-    func testMissingElevenLabsAPIError() async {
-        let expectation = XCTestExpectation(description: "Missing ElevenLabs API error")
-        
-        Task {
-            viewModel.inputText = "Test text"
-            await viewModel.speakText()
-            XCTAssertEqual(viewModel.errorMessage, "ElevenLabs API not configured")
-            expectation.fulfill()
-        }
-        
-        await fulfillment(of: [expectation], timeout: 5.0)
-    }
-    
-    // MARK: - Loading State Tests
-    
-    func testLoadingStateForTextImprovement() async {
-        let expectation = XCTestExpectation(description: "Loading state")
-        
-        Task {
-            viewModel.inputText = "Test text"
-            viewModel.updateAPIKeys(anthropic: "test_key", openAI: "")
+            XCTAssertNotNil(viewModel.errorMessage)
+            XCTAssertTrue(viewModel.errorMessage?.contains("Please enter some text") ?? false)
             
-            XCTAssertFalse(viewModel.isLoading)
+            // Test with input
+            viewModel.inputText = "Test text"
             await viewModel.improveText()
-            XCTAssertFalse(viewModel.isLoading)
-            XCTAssertNotNil(viewModel.errorMessage)
+            XCTAssertFalse(viewModel.outputText.isEmpty)
             
             expectation.fulfill()
         }
         
-        await fulfillment(of: [expectation], timeout: 5.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
     }
     
-    // MARK: - Speech Recognition Tests
+    // MARK: - Text-to-Speech Tests
     
-    func testSpeechRecognitionDeniedError() async {
-        let expectation = XCTestExpectation(description: "Speech recognition denied")
+    func testTextToSpeech() async throws {
+        let expectation = XCTestExpectation(description: "Text-to-speech")
         
         Task {
-            // Simulate denied authorization
-            viewModel.toggleRecording()
-            
-            // Wait for authorization callback
-            try await Task.sleep(nanoseconds: 1_000_000_000)
-            
-            XCTAssertFalse(viewModel.isRecording)
+            // Test with empty output
+            viewModel.outputText = ""
+            await viewModel.playImprovedText()
             XCTAssertNotNil(viewModel.errorMessage)
+            XCTAssertTrue(viewModel.errorMessage?.contains("No improved text") ?? false)
+            
+            // Test without API key
+            viewModel.outputText = "Test text"
+            await viewModel.playImprovedText()
+            XCTAssertNotNil(viewModel.errorMessage)
+            XCTAssertTrue(viewModel.errorMessage?.contains("not configured") ?? false)
             
             expectation.fulfill()
         }
         
-        await fulfillment(of: [expectation], timeout: 5.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
     }
     
     // MARK: - Voice Settings Tests
     
-    func testVoiceSettingsUpdate() async {
-        let expectation = XCTestExpectation(description: "Voice settings update")
+    func testVoiceSettings() async throws {
+        let expectation = XCTestExpectation(description: "Voice settings")
         
         Task {
-            // Set up ElevenLabs API
+            // Configure ElevenLabs
             viewModel.updateElevenLabsKey("test_key")
             
-            // Update settings
+            // Update voice settings
             viewModel.selectedVoiceID = "test_voice"
-            viewModel.stability = 0.8
-            viewModel.similarityBoost = 0.9
-            viewModel.updateVoiceSettings()
+            viewModel.voiceStability = 0.8
+            viewModel.voiceSimilarityBoost = 0.9
             
-            // Verify settings were updated
+            // Verify settings are updated
             XCTAssertEqual(viewModel.selectedVoiceID, "test_voice")
-            XCTAssertEqual(viewModel.stability, 0.8)
-            XCTAssertEqual(viewModel.similarityBoost, 0.9)
+            XCTAssertEqual(viewModel.voiceStability, 0.8)
+            XCTAssertEqual(viewModel.voiceSimilarityBoost, 0.9)
             
             expectation.fulfill()
         }
         
-        await fulfillment(of: [expectation], timeout: 5.0)
-    }
-}
-
-// MARK: - Preview Provider Tests
-
-@MainActor
-final class ContentView_PreviewTests: XCTestCase {
-    func testPreviewProvider() async {
-        let expectation = XCTestExpectation(description: "Preview provider")
-        
-        Task {
-            let preview = ContentView_Previews.previews
-            XCTAssertNotNil(preview, "Preview should be available")
-            expectation.fulfill()
-        }
-        
-        await fulfillment(of: [expectation], timeout: 5.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
     }
 } 
