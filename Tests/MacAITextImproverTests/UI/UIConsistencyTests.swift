@@ -7,7 +7,7 @@ final class UIConsistencyTests: XCTestCase {
     var viewModel: ContentViewModel!
     
     override func setUp() async throws {
-        super.setUp()
+        try await super.setUp()
         viewModel = ContentViewModel(
             anthropicKey: "test_key",
             openAIKey: "test_key",
@@ -19,7 +19,7 @@ final class UIConsistencyTests: XCTestCase {
     override func tearDown() async throws {
         contentView = nil
         viewModel = nil
-        super.tearDown()
+        try await super.tearDown()
     }
     
     func testInitialState() async throws {
@@ -57,23 +57,15 @@ final class UIConsistencyTests: XCTestCase {
     }
     
     func testErrorHandling() async throws {
-        let expectation = XCTestExpectation(description: "Error handling")
+        // Test empty input error
+        viewModel.inputText = ""
+        await viewModel.improveText()
+        XCTAssertNotNil(viewModel.errorMessage)
         
-        Task {
-            // Test empty input error
-            viewModel.inputText = ""
-            await viewModel.improveText()
-            XCTAssertNotNil(viewModel.errorMessage)
-            
-            // Test missing API key error
-            viewModel.updateAPIKeys(anthropic: "", openAI: "")
-            viewModel.inputText = "Test text"
-            await viewModel.improveText()
-            XCTAssertNotNil(viewModel.errorMessage)
-            
-            expectation.fulfill()
-        }
-        
-        await fulfillment(of: [expectation], timeout: 2.0)
+        // Test missing API key error
+        viewModel.updateAPIKeys(anthropic: "", openAI: "")
+        viewModel.inputText = "Test text"
+        await viewModel.improveText()
+        XCTAssertNotNil(viewModel.errorMessage)
     }
 } 

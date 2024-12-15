@@ -7,7 +7,7 @@ final class ContentViewTests: XCTestCase {
     var viewModel: ContentViewModel!
     
     override func setUp() async throws {
-        super.setUp()
+        try await super.setUp()
         // Clear UserDefaults for testing
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: "anthropicKey")
@@ -21,7 +21,7 @@ final class ContentViewTests: XCTestCase {
     override func tearDown() async throws {
         contentView = nil
         viewModel = nil
-        super.tearDown()
+        try await super.tearDown()
     }
     
     // MARK: - API Key Tests
@@ -29,22 +29,20 @@ final class ContentViewTests: XCTestCase {
     func testAPIKeyStorage() async throws {
         let expectation = XCTestExpectation(description: "API key storage")
         
-        Task {
-            // Set API keys through UserDefaults
-            UserDefaults.standard.set("test_anthropic_key", forKey: "anthropicKey")
-            UserDefaults.standard.set("test_openai_key", forKey: "openAIKey")
-            UserDefaults.standard.set("test_elevenlabs_key", forKey: "elevenLabsKey")
-            
-            // Create a new view to load the updated defaults
-            let newView = ContentView()
-            
-            // Verify the keys are loaded into the ViewModel
-            XCTAssertTrue(newView.viewModel.isAnthropicConfigured())
-            XCTAssertTrue(newView.viewModel.isOpenAIConfigured())
-            XCTAssertTrue(newView.viewModel.isElevenLabsConfigured())
-            
-            expectation.fulfill()
-        }
+        // Set API keys through UserDefaults
+        UserDefaults.standard.set("test_anthropic_key", forKey: "anthropicKey")
+        UserDefaults.standard.set("test_openai_key", forKey: "openAIKey")
+        UserDefaults.standard.set("test_elevenlabs_key", forKey: "elevenLabsKey")
+        
+        // Create a new view model with the updated defaults
+        let newViewModel = ContentViewModel()
+        
+        // Verify the keys are loaded
+        XCTAssertTrue(newViewModel.isAnthropicConfigured())
+        XCTAssertTrue(newViewModel.isOpenAIConfigured())
+        XCTAssertTrue(newViewModel.isElevenLabsConfigured())
+        
+        expectation.fulfill()
         
         await fulfillment(of: [expectation], timeout: 2.0)
     }
@@ -52,75 +50,51 @@ final class ContentViewTests: XCTestCase {
     // MARK: - Text Improvement Tests
     
     func testTextImprovement() async throws {
-        let expectation = XCTestExpectation(description: "Text improvement")
+        // Configure API keys
+        viewModel.updateAPIKeys(anthropic: "test_key", openAI: "test_key")
         
-        Task {
-            // Configure API keys
-            viewModel.updateAPIKeys(anthropic: "test_key", openAI: "test_key")
-            
-            // Test empty input
-            viewModel.inputText = ""
-            await viewModel.improveText()
-            XCTAssertNotNil(viewModel.errorMessage)
-            XCTAssertTrue(viewModel.errorMessage?.contains("Please enter some text") ?? false)
-            
-            // Test with input
-            viewModel.inputText = "Test text"
-            await viewModel.improveText()
-            XCTAssertFalse(viewModel.outputText.isEmpty)
-            
-            expectation.fulfill()
-        }
+        // Test empty input
+        viewModel.inputText = ""
+        await viewModel.improveText()
+        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertTrue(viewModel.errorMessage?.contains("Please enter some text") ?? false)
         
-        await fulfillment(of: [expectation], timeout: 2.0)
+        // Test with input
+        viewModel.inputText = "Test text"
+        await viewModel.improveText()
+        XCTAssertFalse(viewModel.outputText.isEmpty)
     }
     
     // MARK: - Text-to-Speech Tests
     
     func testTextToSpeech() async throws {
-        let expectation = XCTestExpectation(description: "Text-to-speech")
+        // Test with empty output
+        viewModel.outputText = ""
+        await viewModel.playImprovedText()
+        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertTrue(viewModel.errorMessage?.contains("No improved text") ?? false)
         
-        Task {
-            // Test with empty output
-            viewModel.outputText = ""
-            await viewModel.playImprovedText()
-            XCTAssertNotNil(viewModel.errorMessage)
-            XCTAssertTrue(viewModel.errorMessage?.contains("No improved text") ?? false)
-            
-            // Test without API key
-            viewModel.outputText = "Test text"
-            await viewModel.playImprovedText()
-            XCTAssertNotNil(viewModel.errorMessage)
-            XCTAssertTrue(viewModel.errorMessage?.contains("not configured") ?? false)
-            
-            expectation.fulfill()
-        }
-        
-        await fulfillment(of: [expectation], timeout: 2.0)
+        // Test without API key
+        viewModel.outputText = "Test text"
+        await viewModel.playImprovedText()
+        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertTrue(viewModel.errorMessage?.contains("not configured") ?? false)
     }
     
     // MARK: - Voice Settings Tests
     
     func testVoiceSettings() async throws {
-        let expectation = XCTestExpectation(description: "Voice settings")
+        // Configure ElevenLabs
+        viewModel.updateElevenLabsKey("test_key")
         
-        Task {
-            // Configure ElevenLabs
-            viewModel.updateElevenLabsKey("test_key")
-            
-            // Update voice settings
-            viewModel.selectedVoiceID = "test_voice"
-            viewModel.voiceStability = 0.8
-            viewModel.voiceSimilarityBoost = 0.9
-            
-            // Verify settings are updated
-            XCTAssertEqual(viewModel.selectedVoiceID, "test_voice")
-            XCTAssertEqual(viewModel.voiceStability, 0.8)
-            XCTAssertEqual(viewModel.voiceSimilarityBoost, 0.9)
-            
-            expectation.fulfill()
-        }
+        // Update voice settings
+        viewModel.selectedVoiceID = "test_voice"
+        viewModel.voiceStability = 0.8
+        viewModel.voiceSimilarityBoost = 0.9
         
-        await fulfillment(of: [expectation], timeout: 2.0)
+        // Verify settings are updated
+        XCTAssertEqual(viewModel.selectedVoiceID, "test_voice")
+        XCTAssertEqual(viewModel.voiceStability, 0.8)
+        XCTAssertEqual(viewModel.voiceSimilarityBoost, 0.9)
     }
 } 
