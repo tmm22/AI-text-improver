@@ -62,7 +62,7 @@ final class UpdateCheckerTests: XCTestCase {
 private class MockUpdateChecker: UpdateChecker {
     private let mockCurrentVersion: String
     
-    init(currentVersion: String, githubOwner: String, githubRepo: String) {
+    override init(currentVersion: String, githubOwner: String, githubRepo: String) {
         self.mockCurrentVersion = currentVersion
         super.init(currentVersion: currentVersion, githubOwner: githubOwner, githubRepo: githubRepo)
     }
@@ -83,19 +83,21 @@ private class MockUpdateChecker: UpdateChecker {
             
             let version = release.tagName.hasPrefix("v") ? String(release.tagName.dropFirst()) : release.tagName
             if version != mockCurrentVersion {
-                self.isUpdateAvailable = true
-                self.latestVersion = version
-                self.releaseNotes = release.body
-                
-                #if arch(arm64)
-                let assetName = "MacAITextImprover-Apple-Silicon.dmg"
-                #else
-                let assetName = "MacAITextImprover-Intel.dmg"
-                #endif
-                
-                self.downloadURL = release.assets
-                    .first { $0.name == assetName }
-                    .map { URL(string: $0.browserDownloadURL) } ?? nil
+                await MainActor.run {
+                    self.isUpdateAvailable = true
+                    self.latestVersion = version
+                    self.releaseNotes = release.body
+                    
+                    #if arch(arm64)
+                    let assetName = "MacAITextImprover-Apple-Silicon.dmg"
+                    #else
+                    let assetName = "MacAITextImprover-Intel.dmg"
+                    #endif
+                    
+                    self.downloadURL = release.assets
+                        .first { $0.name == assetName }
+                        .map { URL(string: $0.browserDownloadURL) } ?? nil
+                }
             }
         } catch {
             print("Error checking for updates: \(error)")
