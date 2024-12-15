@@ -7,7 +7,11 @@ final class SpeechRecognitionTests: XCTestCase {
     
     override func setUp() async throws {
         super.setUp()
-        viewModel = ContentViewModel()
+        viewModel = ContentViewModel(
+            anthropicKey: "test_key",
+            openAIKey: "test_key",
+            elevenLabsKey: "test_key"
+        )
     }
     
     override func tearDown() async throws {

@@ -10,7 +10,7 @@ final class AIServiceTests: XCTestCase {
     }
     
     func testAnthropicAPIRequest() async throws {
-        let api = MockAnthropicAPI()
+        let api = MockAnthropicAPI(apiKey: "test_key")
         let text = "Test text"
         let style = WritingStyle.professional
         
@@ -20,7 +20,7 @@ final class AIServiceTests: XCTestCase {
     }
     
     func testAnthropicAPIErrorHandling() async {
-        let api = MockAnthropicAPIWithError()
+        let api = MockAnthropicAPIWithError(apiKey: "test_key")
         let text = "Test text"
         
         do {
@@ -39,7 +39,7 @@ final class AIServiceTests: XCTestCase {
     }
     
     func testOpenAIAPIRequest() async throws {
-        let api = MockOpenAIAPI()
+        let api = MockOpenAIAPI(apiKey: "test_key")
         let text = "Test text"
         let style = WritingStyle.academic
         
@@ -49,7 +49,7 @@ final class AIServiceTests: XCTestCase {
     }
     
     func testOpenAIAPIErrorHandling() async {
-        let api = MockOpenAIAPIWithError()
+        let api = MockOpenAIAPIWithError(apiKey: "test_key")
         let text = "Test text"
         
         do {
@@ -63,7 +63,7 @@ final class AIServiceTests: XCTestCase {
     // MARK: - API Response Validation
     
     func testAnthropicResponseFormat() async throws {
-        let api = MockAnthropicAPI()
+        let api = MockAnthropicAPI(apiKey: "test_key")
         let text = "Test text"
         let result = try await api.improveText(text, style: .professional)
         
@@ -73,7 +73,7 @@ final class AIServiceTests: XCTestCase {
     }
     
     func testOpenAIResponseFormat() async throws {
-        let api = MockOpenAIAPI()
+        let api = MockOpenAIAPI(apiKey: "test_key")
         let text = "Test text"
         let result = try await api.improveText(text, style: .professional)
         
@@ -85,8 +85,8 @@ final class AIServiceTests: XCTestCase {
     // MARK: - Edge Cases
     
     func testEmptyTextInput() async throws {
-        let anthropicAPI = MockAnthropicAPI()
-        let openAIAPI = MockOpenAIAPI()
+        let anthropicAPI = MockAnthropicAPI(apiKey: "test_key")
+        let openAIAPI = MockOpenAIAPI(apiKey: "test_key")
         let emptyText = ""
         
         // Both APIs should handle empty input gracefully
@@ -99,8 +99,8 @@ final class AIServiceTests: XCTestCase {
     
     func testLongTextInput() async throws {
         let longText = String(repeating: "Test ", count: 1000)
-        let anthropicAPI = MockAnthropicAPI()
-        let openAIAPI = MockOpenAIAPI()
+        let anthropicAPI = MockAnthropicAPI(apiKey: "test_key")
+        let openAIAPI = MockOpenAIAPI(apiKey: "test_key")
         
         // Both APIs should handle long input
         let anthropicResult = try await anthropicAPI.improveText(longText, style: .professional)
@@ -118,24 +118,54 @@ enum MockAPIError: Error {
 }
 
 private class MockAnthropicAPI: AIService {
+    private let apiKey: String
+    
+    init(apiKey: String) {
+        self.apiKey = apiKey
+    }
+    
     func improveText(_ text: String, style: WritingStyle) async throws -> String {
+        guard !apiKey.isEmpty else {
+            throw NSError(domain: "com.test", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid API key"])
+        }
         return "Improved \(text) using \(style.rawValue) style"
     }
 }
 
 private class MockOpenAIAPI: AIService {
+    private let apiKey: String
+    
+    init(apiKey: String) {
+        self.apiKey = apiKey
+    }
+    
     func improveText(_ text: String, style: WritingStyle) async throws -> String {
+        guard !apiKey.isEmpty else {
+            throw NSError(domain: "com.test", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid API key"])
+        }
         return "Enhanced \(text) using \(style.rawValue) style"
     }
 }
 
 private class MockAnthropicAPIWithError: AIService {
+    private let apiKey: String
+    
+    init(apiKey: String) {
+        self.apiKey = apiKey
+    }
+    
     func improveText(_ text: String, style: WritingStyle) async throws -> String {
         throw MockAPIError.testError
     }
 }
 
 private class MockOpenAIAPIWithError: AIService {
+    private let apiKey: String
+    
+    init(apiKey: String) {
+        self.apiKey = apiKey
+    }
+    
     func improveText(_ text: String, style: WritingStyle) async throws -> String {
         throw MockAPIError.testError
     }
