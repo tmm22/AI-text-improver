@@ -5,6 +5,23 @@ All notable changes to Mac AI Text Improver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.35] - 2024-03-15
+
+### Fixed
+- Removed unnecessary await keywords from SpeechRecognitionTests
+- Fixed async operation warnings in test suite
+- Improved test reliability for speech recognition
+
+## [1.0.34] - 2024-03-15
+
+### Fixed
+- Fixed test failures in ContentViewTests related to API key validation
+- Added proper async/await handling in SpeechRecognitionTests
+- Improved TextToSpeechTests mock implementation
+- Added better error handling and validation in tests
+- Fixed unreachable catch blocks and unnecessary try expressions
+- Added proper test cleanup and state management
+
 ## [1.0.33] - 2024-03-14
 
 ### Fixed
