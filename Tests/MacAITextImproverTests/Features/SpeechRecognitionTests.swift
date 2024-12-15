@@ -74,16 +74,18 @@ final class SpeechRecognitionTests: XCTestCase {
         // Start multiple recognition requests concurrently
         await withTaskGroup(of: Void.self) { group in
             for _ in 1...3 { // Reduced number of concurrent tasks for stability
-                group.addTask { [weak self] in
-                    guard let self = self else { return }
-                    await self.viewModel.toggleRecording()
+                group.addTask { [viewModel] in
+                    await viewModel.toggleRecording()
                     try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-                    await self.viewModel.toggleRecording()
+                    await viewModel.toggleRecording()
                 }
             }
             // Wait for all tasks to complete
             await group.waitForAll()
         }
+        
+        // Add a small delay to ensure all cleanup is complete
+        try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
         
         // Verify final state
         XCTAssertFalse(viewModel.isRecording, "Recording should be off after concurrent operations")
