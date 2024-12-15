@@ -25,13 +25,13 @@ final class SpeechRecognitionTests: XCTestCase {
     
     func testRecordingToggle() async {
         // Test toggle on
-        await viewModel.toggleRecording()
+        viewModel.toggleRecording()
         
         // Add a small delay to allow for state changes
         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
         
         // Test toggle off
-        await viewModel.toggleRecording()
+        viewModel.toggleRecording()
         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
         
         XCTAssertFalse(viewModel.isRecording, "Recording should be off after second toggle")
@@ -41,22 +41,22 @@ final class SpeechRecognitionTests: XCTestCase {
     
     func testRecognitionSetup() async {
         // Start recording to trigger recognition setup
-        await viewModel.toggleRecording()
+        viewModel.toggleRecording()
         
         // Give time for setup to complete
         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
         
         // Stop recording
-        await viewModel.toggleRecording()
+        viewModel.toggleRecording()
         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
     }
     
     func testRecognitionCleanup() async {
         // Start and immediately stop recording
-        await viewModel.toggleRecording()
+        viewModel.toggleRecording()
         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
         
-        await viewModel.toggleRecording()
+        viewModel.toggleRecording()
         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
     }
     
@@ -65,7 +65,7 @@ final class SpeechRecognitionTests: XCTestCase {
     func testRapidToggling() async {
         // Rapidly toggle recording multiple times
         for _ in 1...5 {
-            await viewModel.toggleRecording()
+            viewModel.toggleRecording()
             try? await Task.sleep(nanoseconds: 50_000_000) // 0.05 seconds
         }
     }
