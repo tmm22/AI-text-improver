@@ -76,9 +76,9 @@ final class SpeechRecognitionTests: XCTestCase {
             for _ in 1...3 { // Reduced number of concurrent tasks for stability
                 group.addTask { [weak self] in
                     guard let self = self else { return }
-                    self.viewModel.toggleRecording()
+                    await self.viewModel.toggleRecording()
                     try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-                    self.viewModel.toggleRecording()
+                    await self.viewModel.toggleRecording()
                 }
             }
             // Wait for all tasks to complete
