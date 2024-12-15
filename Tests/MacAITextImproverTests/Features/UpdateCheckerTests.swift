@@ -68,39 +68,35 @@ private class MockUpdateChecker: UpdateChecker {
     }
     
     override func checkForUpdates() async {
-        do {
-            let release = GitHubRelease(
-                tagName: "v2.0.0",
-                name: "Version 2.0.0",
-                body: "Test release notes",
-                assets: [
-                    GitHubAsset(
-                        name: "MacAITextImprover-Apple-Silicon.dmg",
-                        browserDownloadURL: "https://example.com/download"
-                    )
-                ]
-            )
-            
-            let version = release.tagName.hasPrefix("v") ? String(release.tagName.dropFirst()) : release.tagName
-            if version != mockCurrentVersion {
-                await MainActor.run {
-                    self.isUpdateAvailable = true
-                    self.latestVersion = version
-                    self.releaseNotes = release.body
-                    
-                    #if arch(arm64)
-                    let assetName = "MacAITextImprover-Apple-Silicon.dmg"
-                    #else
-                    let assetName = "MacAITextImprover-Intel.dmg"
-                    #endif
-                    
-                    self.downloadURL = release.assets
-                        .first { $0.name == assetName }
-                        .map { URL(string: $0.browserDownloadURL) } ?? nil
-                }
+        let release = GitHubRelease(
+            tagName: "v2.0.0",
+            name: "Version 2.0.0",
+            body: "Test release notes",
+            assets: [
+                GitHubAsset(
+                    name: "MacAITextImprover-Apple-Silicon.dmg",
+                    browserDownloadURL: "https://example.com/download"
+                )
+            ]
+        )
+        
+        let version = release.tagName.hasPrefix("v") ? String(release.tagName.dropFirst()) : release.tagName
+        if version != mockCurrentVersion {
+            await MainActor.run {
+                self.isUpdateAvailable = true
+                self.latestVersion = version
+                self.releaseNotes = release.body
+                
+                #if arch(arm64)
+                let assetName = "MacAITextImprover-Apple-Silicon.dmg"
+                #else
+                let assetName = "MacAITextImprover-Intel.dmg"
+                #endif
+                
+                self.downloadURL = release.assets
+                    .first { $0.name == assetName }
+                    .map { URL(string: $0.browserDownloadURL) } ?? nil
             }
-        } catch {
-            print("Error checking for updates: \(error)")
         }
     }
 } 
