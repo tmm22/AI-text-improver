@@ -27,7 +27,7 @@ jobs:
     - name: Set up Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '14.2'
+        xcode-version: '16.1.0'
     
     # Run Tests
     - name: Run Feature Tests
@@ -128,16 +128,18 @@ jobs:
         VERSION=${GITHUB_REF#refs/tags/v}
         echo "Extracting release notes for version $VERSION"
         
-        # Ensure CHANGELOG.md exists
-        if [ ! -f CHANGELOG.md ]; then
-          echo "Error: CHANGELOG.md not found"
-          exit 1
-        fi
+        # Create temporary file for release notes
+        touch release_notes.md
         
-        # Extract the section for this version
-        sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' > release_notes.md
+        # Extract release notes using awk for more reliable section extraction
+        awk -v version="$VERSION" '
+          BEGIN { found=0; }
+          /^## \['"$VERSION"'\]/ { found=1; next; }
+          /^## \[/ { if (found) exit; }
+          { if (found) print; }
+        ' CHANGELOG.md > release_notes.md
         
-        # Check if we got any content
+        # Verify we got content
         if [ ! -s release_notes.md ]; then
           echo "Error: No release notes found for version $VERSION"
           echo "Content of CHANGELOG.md:"
