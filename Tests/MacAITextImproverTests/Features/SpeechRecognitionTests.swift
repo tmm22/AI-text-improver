@@ -6,7 +6,7 @@ final class SpeechRecognitionTests: XCTestCase {
     var viewModel: ContentViewModel!
     
     override func setUp() async throws {
-        super.setUp()
+        try await super.setUp()
         viewModel = ContentViewModel(
             anthropicKey: "test_key",
             openAIKey: "test_key",
@@ -16,7 +16,7 @@ final class SpeechRecognitionTests: XCTestCase {
     
     override func tearDown() async throws {
         viewModel = nil
-        super.tearDown()
+        try await super.tearDown()
     }
     
     func testInitialRecordingState() async {
@@ -27,9 +27,6 @@ final class SpeechRecognitionTests: XCTestCase {
         // Test toggle on
         await viewModel.toggleRecording()
         
-        // Note: Actual state depends on permissions, so we test the function call
-        XCTAssertNoThrow(try await viewModel.toggleRecording())
-        
         // Test toggle off
         await viewModel.toggleRecording()
         XCTAssertFalse(viewModel.isRecording, "Recording should be off after second toggle")
@@ -38,17 +35,11 @@ final class SpeechRecognitionTests: XCTestCase {
     // MARK: - Recognition Tests
     
     func testRecognitionSetup() async {
-        let expectation = XCTestExpectation(description: "Recognition setup")
-        
         // Start recording to trigger recognition setup
         await viewModel.toggleRecording()
         
         // Give time for setup to complete
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            expectation.fulfill()
-        }
-        
-        await fulfillment(of: [expectation], timeout: 2.0)
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
         
         // Stop recording
         await viewModel.toggleRecording()
@@ -58,9 +49,6 @@ final class SpeechRecognitionTests: XCTestCase {
         // Start and immediately stop recording
         await viewModel.toggleRecording()
         await viewModel.toggleRecording()
-        
-        // Verify we can toggle again
-        XCTAssertNoThrow(try await viewModel.toggleRecording())
     }
     
     // MARK: - Edge Cases
@@ -70,9 +58,6 @@ final class SpeechRecognitionTests: XCTestCase {
         for _ in 1...5 {
             await viewModel.toggleRecording()
         }
-        
-        // Verify we end up in a valid state
-        XCTAssertNoThrow(try await viewModel.toggleRecording())
     }
     
     func testConcurrentRecognition() async {
@@ -84,8 +69,5 @@ final class SpeechRecognitionTests: XCTestCase {
                 }
             }
         }
-        
-        // Verify we can still toggle after concurrent operations
-        XCTAssertNoThrow(try await viewModel.toggleRecording())
     }
 } 

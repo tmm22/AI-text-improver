@@ -6,7 +6,7 @@ final class UpdateCheckerTests: XCTestCase {
     var updateChecker: UpdateChecker!
     
     override func setUp() async throws {
-        super.setUp()
+        try await super.setUp()
         updateChecker = UpdateChecker(
             currentVersion: "1.0.0",
             githubOwner: "test",
@@ -16,7 +16,7 @@ final class UpdateCheckerTests: XCTestCase {
     
     override func tearDown() async throws {
         updateChecker = nil
-        super.tearDown()
+        try await super.tearDown()
     }
     
     func testInitialization() async {
@@ -60,6 +60,13 @@ final class UpdateCheckerTests: XCTestCase {
 
 @MainActor
 private class MockUpdateChecker: UpdateChecker {
+    private let mockCurrentVersion: String
+    
+    init(currentVersion: String, githubOwner: String, githubRepo: String) {
+        self.mockCurrentVersion = currentVersion
+        super.init(currentVersion: currentVersion, githubOwner: githubOwner, githubRepo: githubRepo)
+    }
+    
     override func checkForUpdates() async {
         do {
             let release = GitHubRelease(
@@ -75,7 +82,7 @@ private class MockUpdateChecker: UpdateChecker {
             )
             
             let version = release.tagName.hasPrefix("v") ? String(release.tagName.dropFirst()) : release.tagName
-            if version != currentVersion {
+            if version != mockCurrentVersion {
                 self.isUpdateAvailable = true
                 self.latestVersion = version
                 self.releaseNotes = release.body
