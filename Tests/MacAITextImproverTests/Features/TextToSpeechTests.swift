@@ -6,7 +6,7 @@ final class TextToSpeechTests: XCTestCase {
     
     override func setUp() async throws {
         try await super.setUp()
-        elevenLabsAPI = ElevenLabsAPI(apiKey: "test_key")
+        elevenLabsAPI = MockElevenLabsAPI(apiKey: "test_key", voiceID: "test_voice")
     }
     
     override func tearDown() async throws {
@@ -15,8 +15,7 @@ final class TextToSpeechTests: XCTestCase {
     }
     
     func testVoiceSynthesis() async throws {
-        // Test with mock voice synthesis
-        let api = MockElevenLabsAPI(apiKey: "test_key")
+        let api = MockElevenLabsAPI(apiKey: "test_key", voiceID: "test_voice")
         
         // Test default parameters
         let audioURL = try await api.synthesizeSpeech(text: "Test")
@@ -28,7 +27,7 @@ final class TextToSpeechTests: XCTestCase {
     }
     
     func testVoiceSettings() async throws {
-        let api = MockElevenLabsAPI(apiKey: "test_key")
+        let api = MockElevenLabsAPI(apiKey: "test_key", voiceID: "test_voice")
         
         // Update voice settings
         api.updateSettings(
@@ -47,7 +46,7 @@ final class TextToSpeechTests: XCTestCase {
     }
     
     func testInvalidAPIKey() async {
-        let api = MockElevenLabsAPI(apiKey: "")
+        let api = MockElevenLabsAPI(apiKey: "", voiceID: "test_voice")
         
         do {
             _ = try await api.synthesizeSpeech(text: "Test")
@@ -58,7 +57,7 @@ final class TextToSpeechTests: XCTestCase {
     }
     
     func testEmptyText() async {
-        let api = MockElevenLabsAPI(apiKey: "test_key")
+        let api = MockElevenLabsAPI(apiKey: "test_key", voiceID: "test_voice")
         
         do {
             _ = try await api.synthesizeSpeech(text: "")
@@ -72,6 +71,17 @@ final class TextToSpeechTests: XCTestCase {
 // MARK: - Mock Classes
 
 private class MockElevenLabsAPI: ElevenLabsAPI {
+    private var mockVoiceID: String
+    private var mockStability: Double = 0.5
+    private var mockSimilarityBoost: Double = 0.75
+    private let mockApiKey: String
+    
+    init(apiKey: String, voiceID: String) {
+        self.mockVoiceID = voiceID
+        self.mockApiKey = apiKey
+        super.init(apiKey: apiKey, voiceID: voiceID)
+    }
+    
     override func synthesizeSpeech(text: String) async throws -> URL {
         // Validate input
         guard !text.isEmpty else {
@@ -82,12 +92,7 @@ private class MockElevenLabsAPI: ElevenLabsAPI {
             )
         }
         
-        let apiKey = try Mirror(reflecting: self)
-            .children
-            .first { $0.label == "apiKey" }?
-            .value as? String ?? ""
-        
-        guard !apiKey.isEmpty else {
+        guard !mockApiKey.isEmpty else {
             throw NSError(
                 domain: "com.test",
                 code: 2,
@@ -106,13 +111,14 @@ private class MockElevenLabsAPI: ElevenLabsAPI {
         return tempFile
     }
     
+    override func updateSettings(voiceID: String, stability: Double, similarityBoost: Double) {
+        self.mockVoiceID = voiceID
+        self.mockStability = stability
+        self.mockSimilarityBoost = similarityBoost
+    }
+    
     override func getVoices() async throws -> [Voice] {
-        let apiKey = try Mirror(reflecting: self)
-            .children
-            .first { $0.label == "apiKey" }?
-            .value as? String ?? ""
-        
-        guard !apiKey.isEmpty else {
+        guard !mockApiKey.isEmpty else {
             throw NSError(
                 domain: "com.test",
                 code: 2,
